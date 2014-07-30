@@ -1,0 +1,8 @@
+backup/
+lib/
+base/
+iorders.log
+iorders.ini
+*.exe
+*.xml
+*.dll
