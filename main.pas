@@ -26,6 +26,10 @@ type
     procedure ListBox1Click(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure GetMailMsgs();
+    procedure getListOrders(var list: TStrings);
+    function getXmlOrder(id_order: integer; var dest: TStream): string;
+
+    procedure LoadOrders();
   private
     { private declarations }
   public
@@ -41,8 +45,7 @@ var
   IncDays: integer;
   BeepOnNew: boolean;
 
-  IMAPClient: TIdIMAP4;
-  OpenSSLHandler: TIdSSLIOHandlerSocketOpenSSL;
+
 
   Host, UName, UPass: string;
   Port, TimeoutConnect: integer;
@@ -50,7 +53,7 @@ var
 
 implementation
 
-uses IdText, IdAttachment;
+uses IdText, IdAttachment, IdHTTP, IdMessageParts, XMLRead, DOM;
 
 {$R *.lfm}
 
@@ -95,22 +98,26 @@ begin
   AddLog(E.Message, LogFile);
 end;
 
+
+
 procedure TForm1.ListBox1Click(Sender: TObject);
 var
   k: integer;
   msg: PChar;
+  orderInfo: TStrings;
+  fn: string;
 begin
   k := ListBox1.ItemIndex;
-  if k > -1 then
-  begin
-    msg := PChar(ListBox1.Items.Objects[k]);
-    Memo1.Lines.Text := msg;
-  end;
-
+  if k < 0 then
+    exit;
+  orderInfo := TStrings(ListBox1.Items.Objects[k]);
+  Memo1.Lines := orderInfo;
 end;
 
 
 procedure TForm1.FormCreate(Sender: TObject);
+var
+  list: TStrings;
 begin
   Application.OnException := @CustomExceptionHandler;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
@@ -127,8 +134,103 @@ begin
   TimeoutConnect := ini.ReadInteger('MailParams', 'TimeoutConnect', 5000);
 
   Timer1.Interval := Interval;
-  GetMailMsgs();
-  // Timer1.Enabled := True;
+
+  LoadOrders();
+
+end;
+
+procedure TForm1.LoadOrders();
+var
+  orders: TStrings;
+  xmlstream: TMemoryStream;
+  orderInfo: TStrings;
+  fn: string;
+  i: integer;
+  xml: TXMLDocument;
+  s: string;
+  res: string;
+begin
+  ListBox1.Clear;
+  orders := TStringList.Create;
+
+  try
+    getListOrders(orders);
+    for i := 0 to orders.Count - 1 do
+    begin
+      xmlstream := TMemoryStream.Create;
+      try
+        try
+          orderInfo := TStringList.Create;
+          fn := getXmlOrder(StrToInt(orders[i]), TStream(xmlstream));
+          xmlstream.Position := 0;
+          ReadXMLFile(xml, xmlstream);
+          s := UTF8Encode(xml.DocumentElement.FindNode('f_name').TextContent);
+          orderInfo.Add('Имя: ' + s);
+          s := UTF8Encode(xml.DocumentElement.FindNode('phone1').TextContent);
+          orderInfo.Add('Телефон: ' + s);
+          ListBox1.Items.AddObject(fn, TObject(orderInfo));
+        except
+          continue;
+        end;
+      finally
+        xml.Free;
+        xmlstream.Free;
+      end;
+    end;
+
+  finally
+    orders.Free;
+  end;
+end;
+
+function TForm1.getXmlOrder(id_order: integer; var dest: TStream): string;
+var
+  httpClient: TIdHTTP;
+  Data: TStrings;
+begin
+  httpClient := TIdHTTP.Create;
+  Data := TStringList.Create;
+  Data.Add('getxmlorder=1');
+  Data.Add('id_order=' + IntToStr(id_order));
+  try
+    try
+      httpClient.Post(host, Data, dest);
+      Result := ExtractHeaderSubItem(httpClient.Response.ContentDisposition,
+        'filename=');
+    except
+      on e: Exception do
+      begin
+        AddLog(E.Message + ' in function "getXmlOrder"', LogFile);
+      end;
+    end;
+  finally
+    Data.Free;
+    httpClient.Free;
+  end;
+
+end;
+
+procedure TForm1.getListOrders(var list: TStrings);
+var
+  httpClient: TIdHTTP;
+  Data: TStrings;
+begin
+  httpClient := TIdHTTP.Create;
+  Data := TStringList.Create;
+  Data.Add('getlistorders=1');
+  try
+    try
+      list.Text := httpClient.Post(host, Data);
+    except
+      on e: Exception do
+      begin
+        AddLog(E.Message + ' in function "getListOrders"', LogFile);
+      end;
+    end;
+  finally
+    Data.Free;
+    httpClient.Free;
+  end;
 
 end;
 
@@ -227,8 +329,6 @@ begin
 
           finally
             FreeAndNil(msg);
-            //FreeAndNil( msg2 );
-            //FreeAndNil( BodyTexts )
           end;
 
         end;
@@ -250,39 +350,6 @@ var
   msgcnt, i: integer;
 begin
   GetMailMsgs();
-  {IdPOP3_1.Host := stPOP3;
-  IdPOP3_1.Port := inPOP3Port;
-  IdPOP3_1.Username := stUName;
-  IdPOP3_1.Password := stUPass;
-  IdPOP3_1.ConnectTimeout := TimeoutConnect;
-  IdPOP3_1.Connect;
-  IdIMAP4_1.Host:=Host;
-  IdIMAP4_1.Port:=Port;
-  IdIMAP4_1.Username:=UName;
-  IdIMAP4_1.Password:=UPass;
-  IdIMAP4_1.ConnectTimeout:=TimeoutConnect;
-
-  try
-    try
-      if IdIMAP4_1.Connected then
-      begin
-        // IdMessageDecoderMIME1;
-        msgcnt := IdIMAP4_1.CheckMessages;
-        for i := msgcnt downto 1 do
-        begin
-          IdMessage1.Clear;
-          if (IdPOP3_1.RetrieveHeader(i, IdMessage1)) then
-          begin
-            ListBox1.Items.Add(IdMessage1.Subject);
-          end;
-        end;
-      end;
-    except
-      exit;
-    end;
-  finally
-    IdPOP3_1.disconnect;
-  end; }
 
 end;
 
