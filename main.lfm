@@ -1,7 +1,7 @@
 object Form1: TForm1
-  Left = 660
+  Left = 1031
   Height = 495
-  Top = 241
+  Top = 479
   Width = 806
   Caption = 'Интернет заказы'
   ClientHeight = 495
@@ -9,10 +9,10 @@ object Form1: TForm1
   OnCreate = FormCreate
   LCLVersion = '1.2.4.0'
   object Memo1: TMemo
-    Left = 237
+    Left = 250
     Height = 439
     Top = 28
-    Width = 569
+    Width = 556
     Align = alClient
     TabOrder = 0
   end
@@ -20,14 +20,14 @@ object Form1: TForm1
     Left = 0
     Height = 439
     Top = 28
-    Width = 232
+    Width = 245
     Align = alLeft
     ItemHeight = 0
     OnClick = ListBox1Click
     TabOrder = 1
   end
   object Splitter1: TSplitter
-    Left = 232
+    Left = 245
     Height = 439
     Top = 28
     Width = 5
@@ -39,8 +39,7 @@ object Form1: TForm1
     Width = 806
     Panels = <    
       item
-        Alignment = taCenter
-        Width = 232
+        Width = 245
       end    
       item
         Text = 'Нет новых заказов'
@@ -58,7 +57,7 @@ object Form1: TForm1
       item
         Alignment = taCenter
         Text = 'Заказы'
-        Width = 232
+        Width = 245
       end    
       item
         Text = 'Текст'

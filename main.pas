@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, dateutils, Forms, Dialogs,
   ExtCtrls, StdCtrls, ComCtrls, IniFiles, IdMessage,
-  IdIMAP4, IdSSLOpenSSL, IdExplicitTLSClientServerBase;
+  IdIMAP4, IdSSLOpenSSL, IdExplicitTLSClientServerBase, XMLRead, DOM, Windows;
 
 type
 
@@ -28,10 +28,12 @@ type
     procedure GetMailMsgs();
     procedure getListOrders(var list: TStrings);
     function getXmlOrder(id_order: integer; var dest: TStream): string;
-
+    procedure formatOrderInfo(id_order: string; var xml: TXmlDocument;
+      var orderInfo: TStrings);
     procedure LoadOrders();
   private
     { private declarations }
+    function getNodeValue(var xml: TXmlDocument; dname: string): string;
   public
     { public declarations }
   end;
@@ -53,11 +55,13 @@ var
 
 implementation
 
-uses IdText, IdAttachment, IdHTTP, IdMessageParts, XMLRead, DOM;
+uses IdText, IdAttachment, IdHTTP, IdMessageParts;
 
 {$R *.lfm}
 
 { TForm1 }
+
+
 
 procedure AddLog(LogString: string; LogFileName: string);
 var
@@ -139,48 +143,134 @@ begin
 
 end;
 
+procedure TForm1.formatOrderInfo(id_order: string; var xml: TXmlDocument;
+  var orderInfo: TStrings);
+var
+  s: string;
+  j: integer;
+  dn: TDOMNode;
+begin
+  try
+    s := 'ЗАКАЗ №' + id_order + ' НА СУММУ: ' + getNodeValue(xml,
+      'order_summ') + ' руб.';
+    orderInfo.Add(s);
+    orderInfo.Add('-----------------------------------------');
+    s := 'Имя: ' + getNodeValue(xml, 'f_name') + ' ' + getNodeValue(xml, 'm_name') +
+      ' ' + getNodeValue(xml, 'l_name');
+    orderInfo.Add(s);
+    s := getNodeValue(xml, 'organization');
+    if s <> '' then
+      orderInfo.Add('Организация: ' + s);
+    s := 'Адрес: г.' + getNodeValue(xml, 'town') + ', ул.' +
+      getNodeValue(xml, 'street') + ', д.' + getNodeValue(xml, 'house') +
+      ', стр.' + getNodeValue(xml, 'building') + ', подъезд: ' +
+      getNodeValue(xml, 'entry') + ', кв.(офис): ' + getNodeValue(xml, 'flat') +
+      ', этаж: ' + getNodeValue(xml, 'floor') + ', код входа: ' +
+      getNodeValue(xml, 'codeentry');
+    orderInfo.Add(s);
+    s := 'Телефон: ' + getNodeValue(xml, 'phone1');
+    orderInfo.Add(s);
+    s := getNodeValue(xml, 'email');
+    if s <> '' then
+      orderInfo.Add('Email: ' + s);
+    s := getNodeValue(xml, 'adv_info');
+    if s <> '' then
+      orderInfo.Add('Примечание: ' + s);
+    s := 'СОСТАВ:';
+    orderInfo.Add(s);
+    orderInfo.Add(format('%-10s | %-50s | %-10s | %-10s',
+      ['Код', 'Наименование', 'Кол-во', 'Цена']));
+    orderInfo.Add('------------------------------------------------------------');
+    dn := xml.DocumentElement.FindNode('menu');
+    for j := 0 to dn.ChildNodes.Count - 1 do
+      with dn.ChildNodes.Item[j].FindNode('item') do
+      begin
+        s := format('%-10s | %-50s | %-10s | %-10s',
+          [UTF8Encode(Attributes.GetNamedItem('code').TextContent),
+          UTF8Encode(Attributes.GetNamedItem('name').TextContent),
+          UTF8Encode(Attributes.GetNamedItem('quantity').TextContent),
+          UTF8Encode(Attributes.GetNamedItem('price').TextContent)]);
+        orderInfo.Add(s);
+      end;
+    orderInfo.Add('------------------------------------------------------------');
+    s := format('%89s', ['Всего: ' + getNodeValue(xml, 'order_summ') + ' руб.']);
+    orderInfo.Add(s);
+
+  except
+    on e: Exception do
+    begin
+      AddLog(E.Message + ' in function "formatOrderInfo"', LogFile);
+      exit;
+    end;
+
+  end;
+end;
+
+function TForm1.getNodeValue(var xml: TXmlDocument; dname: string): string;
+begin
+  try
+    Result := UTF8Encode(xml.DocumentElement.FindNode(dname).TextContent);
+  except
+    Result := '';
+  end;
+end;
+
+procedure OnNewBeep;
+begin
+  Windows.Beep(500, 300);
+  Windows.Beep(700, 500);
+end;
+
 procedure TForm1.LoadOrders();
 var
   orders: TStrings;
   xmlstream: TMemoryStream;
   orderInfo: TStrings;
   fn: string;
-  i: integer;
+  i, oc: integer;
   xml: TXMLDocument;
-  s: string;
-  res: string;
 begin
   ListBox1.Clear;
   orders := TStringList.Create;
-
   try
     getListOrders(orders);
+    oc := orders.Count;
     for i := 0 to orders.Count - 1 do
     begin
       xmlstream := TMemoryStream.Create;
       try
         try
-          orderInfo := TStringList.Create;
           fn := getXmlOrder(StrToInt(orders[i]), TStream(xmlstream));
           xmlstream.Position := 0;
           ReadXMLFile(xml, xmlstream);
-          s := UTF8Encode(xml.DocumentElement.FindNode('f_name').TextContent);
-          orderInfo.Add('Имя: ' + s);
-          s := UTF8Encode(xml.DocumentElement.FindNode('phone1').TextContent);
-          orderInfo.Add('Телефон: ' + s);
-          ListBox1.Items.AddObject(fn, TObject(orderInfo));
+          orderInfo := TStringList.Create;
+          formatOrderInfo(orders[i], xml, orderInfo);
+          ListBox1.Items.AddObject('Заказ ' + orders[i] + ' от ' +
+            getNodeValue(xml, 'wait_time'), TObject(orderInfo));
         except
-          continue;
+          on e: Exception do
+          begin
+            AddLog(E.Message + ' in function "LoadOrders"', LogFile);
+            continue;
+          end;
+
         end;
       finally
         xml.Free;
         xmlstream.Free;
       end;
     end;
-
   finally
     orders.Free;
   end;
+  StatusBarBottom.Panels.Items[0].Text := 'Last check: ' + DateTimeToStr(Now());
+  if oc > 0 then
+    StatusBarBottom.Panels.Items[1].Text := Format('Новых заказов: %d', [oc])
+  else
+    StatusBarBottom.Panels.Items[1].Text := 'Нет новых заказов';
+  if BeepOnNew then
+    OnNewBeep;
+
 end;
 
 function TForm1.getXmlOrder(id_order: integer; var dest: TStream): string;
