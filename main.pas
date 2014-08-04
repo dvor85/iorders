@@ -5,9 +5,10 @@ unit main;
 interface
 
 uses
-  Classes, SysUtils, dateutils, Forms, Dialogs,
-  ExtCtrls, StdCtrls, ComCtrls, IniFiles, IdMessage,
-  IdIMAP4, IdSSLOpenSSL, IdExplicitTLSClientServerBase, XMLRead, DOM, Windows;
+  Classes, SysUtils, dateutils, Forms, Dialogs, ExtCtrls, StdCtrls, ComCtrls,
+  IniFiles, IdMessage, IdIMAP4, IdSSLOpenSSL, IdExplicitTLSClientServerBase,
+  IBConnection, sqldb, XMLRead, DOM, Windows, types, Controls,
+  Menus;
 
 type
 
@@ -16,24 +17,45 @@ type
   TForm1 = class(TForm)
     ListBox1: TListBox;
     Memo1: TMemo;
+    MenuItem1: TMenuItem;
+    MenuItem2: TMenuItem;
+    MenuItem3: TMenuItem;
+    MenuItem4: TMenuItem;
+    PopupMenu1: TPopupMenu;
     Splitter1: TSplitter;
     StatusBarBottom: TStatusBar;
     StatusBarTop: TStatusBar;
     Timer1: TTimer;
     TrayIcon1: TTrayIcon;
+    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure CustomExceptionHandler(Sender: TObject; E: Exception);
     procedure ListBox1Click(Sender: TObject);
+    procedure MenuItem1Click(Sender: TObject);
+    procedure MenuItem2Click(Sender: TObject);
+    procedure MenuItem3Click(Sender: TObject);
+    procedure MenuItem4Click(Sender: TObject);
+
+
+
     procedure Timer1Timer(Sender: TObject);
     procedure GetMailMsgs();
     procedure getListOrders(var list: TStrings);
     function getXmlOrder(id_order: integer; var dest: TStream): string;
-    procedure formatOrderInfo(id_order: string; var xml: TXmlDocument;
-      var orderInfo: TStrings);
+    function setOrderStatus(id_order: string; status: string): string;
+
     procedure LoadOrders();
+    procedure TrayIcon1DblClick(Sender: TObject);
   private
     { private declarations }
+
+    procedure WMQueryEndSession(var Message: TWMQueryEndSession);
+      message WM_QUERYENDSESSION;
     function getNodeValue(var xml: TXmlDocument; dname: string): string;
+    procedure BeepOnNewOrders;
+    procedure formatOrderInfo(id_order: string; var xml: TXmlDocument;
+      var orderInfo: TStrings);
+    procedure InsertToBase(fn: string; var src: TMemoryStream);
   public
     { public declarations }
   end;
@@ -41,14 +63,14 @@ type
 var
   Form1: TForm1;
   ini: TIniFile;
-  DB: string;
+  DBName: string;
   LogFile: string;
   Interval: integer;
   IncDays: integer;
   BeepOnNew: boolean;
 
 
-
+  Shutdown: boolean = True;
   Host, UName, UPass: string;
   Port, TimeoutConnect: integer;
 
@@ -107,9 +129,7 @@ end;
 procedure TForm1.ListBox1Click(Sender: TObject);
 var
   k: integer;
-  msg: PChar;
   orderInfo: TStrings;
-  fn: string;
 begin
   k := ListBox1.ItemIndex;
   if k < 0 then
@@ -118,14 +138,41 @@ begin
   Memo1.Lines := orderInfo;
 end;
 
+procedure TForm1.MenuItem1Click(Sender: TObject);
+begin
+  MessageDlg(Form1.Caption,
+    'Delivery InternetOrders v.2.0, Dmitriy Vorotilin, dvor85@mail.ru',
+    mtInformation, [mbYes], '');
+end;
+
+procedure TForm1.MenuItem2Click(Sender: TObject);
+begin
+  Form1.ShowOnTop;
+end;
+
+procedure TForm1.MenuItem3Click(Sender: TObject);
+begin
+  LoadOrders();
+end;
+
+procedure TForm1.MenuItem4Click(Sender: TObject);
+begin
+  if MessageDlg(Form1.Caption, 'Вы уверены что надо выйти?', mtConfirmation,
+    mbYesNo, '') = mrYes then
+  begin
+    AddLog('Exit program', LogFile);
+    Application.Terminate;
+  end;
+end;
+
+
+
 
 procedure TForm1.FormCreate(Sender: TObject);
-var
-  list: TStrings;
 begin
   Application.OnException := @CustomExceptionHandler;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
-  DB := ini.ReadString('Global', 'DB', '');
+  DBName := ini.ReadString('Global', 'DB', '');
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
   Interval := ini.ReadInteger('Global', 'Interval', 300000);
   IncDays := ini.ReadInteger('Global', 'IncDays', 0);
@@ -138,9 +185,20 @@ begin
   TimeoutConnect := ini.ReadInteger('MailParams', 'TimeoutConnect', 5000);
 
   Timer1.Interval := Interval;
+  TrayIcon1.Hint := Form1.Caption;
 
   LoadOrders();
 
+end;
+
+
+
+procedure TForm1.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+  if not Shutdown then
+    CloseAction := caHide
+  else
+    CloseAction := caFree;
 end;
 
 procedure TForm1.formatOrderInfo(id_order: string; var xml: TXmlDocument;
@@ -215,7 +273,7 @@ begin
   end;
 end;
 
-procedure OnNewBeep;
+procedure TForm1.BeepOnNewOrders;
 begin
   Windows.Beep(500, 300);
   Windows.Beep(700, 500);
@@ -230,7 +288,6 @@ var
   i, oc: integer;
   xml: TXMLDocument;
 begin
-  ListBox1.Clear;
   orders := TStringList.Create;
   try
     getListOrders(orders);
@@ -245,16 +302,21 @@ begin
           ReadXMLFile(xml, xmlstream);
           orderInfo := TStringList.Create;
           formatOrderInfo(orders[i], xml, orderInfo);
-          ListBox1.Items.AddObject('Заказ ' + orders[i] + ' от ' +
+          ListBox1.Items.InsertObject(0, 'Заказ ' + orders[i] + ' от ' +
             getNodeValue(xml, 'wait_time'), TObject(orderInfo));
+
+          InsertToBase(fn, xmlstream);
+          AddLog(format('New order %s with stream: %s', [orders[i], fn]), LogFile);
+          // AddLog(format('Set status return: %s',
+          //   [setOrderStatus(orders[i], '1')]), LogFile);
         except
           on e: Exception do
           begin
             AddLog(E.Message + ' in function "LoadOrders"', LogFile);
             continue;
           end;
-
         end;
+
       finally
         xml.Free;
         xmlstream.Free;
@@ -265,11 +327,62 @@ begin
   end;
   StatusBarBottom.Panels.Items[0].Text := 'Last check: ' + DateTimeToStr(Now());
   if oc > 0 then
-    StatusBarBottom.Panels.Items[1].Text := Format('Новых заказов: %d', [oc])
+  begin
+    StatusBarBottom.Panels.Items[1].Text := Format('Новых заказов: %d', [oc]);
+    ListBox1.ItemIndex := 0;
+    ListBox1.Click;
+    TrayIcon1.BalloonTitle := Form1.Caption;
+    TrayIcon1.BalloonHint := StatusBarBottom.Panels.Items[0].Text +
+      #13#10 + StatusBarBottom.Panels.Items[1].Text;
+    TrayIcon1.ShowBalloonHint;
+  end
   else
     StatusBarBottom.Panels.Items[1].Text := 'Нет новых заказов';
   if BeepOnNew then
-    OnNewBeep;
+    BeepOnNewOrders;
+
+end;
+
+procedure TForm1.TrayIcon1DblClick(Sender: TObject);
+begin
+  Form1.ShowOnTop;
+end;
+
+procedure TForm1.InsertToBase(fn: string; var src: TMemoryStream);
+var
+  mysqlquery: TSQLQuery;
+  mytransaction: TSQLTransaction;
+  myIbConnection: TIBConnection;
+begin
+  myIbConnection := TIBConnection.Create(Form1);
+  myIbConnection.DatabaseName := DBName;
+  myIbConnection.UserName := 'SYSDBA';
+  myIbConnection.Password := 'masterkey';
+  myIbConnection.Connected := True;
+  mysqlquery := TSQLQuery.Create(Form1);
+  mytransaction := TSQLTRansaction.Create(Form1);
+  mytransaction.DataBase := myIbConnection;
+  try
+    mytransaction.Active := True;
+    with mysqlquery do
+    begin
+      ReadOnly := False;
+      Database := myIbConnection;
+      Transaction := mytransaction;
+      SQL.Text :=
+        'INSERT INTO DLV_INTERNETORDERS (INETORDER_ID,INETORDER,FILENAME) VALUES ((select next value for dlv_inetorder_id_gen from RDB$DATABASE),:INETORDER,:FILENAME)';
+      src.Position := 0;
+      ParamByName('FILENAME').AsString := fn;
+      ParamByName('INETORDER').AsBlob := PChar(src.Memory);
+      ExecSQL;
+      mytransaction.Commit;
+      Close;
+    end;
+  finally
+    mysqlquery.Free;
+    mytransaction.Free;
+    myIbConnection.Free;
+  end;
 
 end;
 
@@ -279,6 +392,7 @@ var
   Data: TStrings;
 begin
   httpClient := TIdHTTP.Create;
+  httpClient.ConnectTimeout := TimeoutConnect;
   Data := TStringList.Create;
   Data.Add('getxmlorder=1');
   Data.Add('id_order=' + IntToStr(id_order));
@@ -306,6 +420,7 @@ var
   Data: TStrings;
 begin
   httpClient := TIdHTTP.Create;
+  httpClient.ConnectTimeout := TimeoutConnect;
   Data := TStringList.Create;
   Data.Add('getlistorders=1');
   try
@@ -324,20 +439,47 @@ begin
 
 end;
 
+function TForm1.setOrderStatus(id_order: string; status: string): string;
+var
+  httpClient: TIdHTTP;
+  Data: TStrings;
+  res: TStringList;
+begin
+  httpClient := TIdHTTP.Create;
+  httpClient.ConnectTimeout := TimeoutConnect;
+  Data := TStringList.Create;
+  res := TStringList.Create;
+  Data.Add('setorderstatus=1');
+  Data.Add('id_order=' + id_order);
+  Data.Add('status=' + status);
+  Result := '';
+  try
+    try
+      res.Text := httpClient.Post(host, Data);
+      Result := res.Text;
+    except
+      on e: Exception do
+      begin
+        AddLog(E.Message + ' in function "setOrderStatus"', LogFile);
+      end;
+    end;
+  finally
+    res.Free;
+    Data.Free;
+    httpClient.Free;
+  end;
+
+end;
+
 procedure TForm1.GetMailMsgs();
 var
   IMAPClient: TIdIMAP4;
-  UsersFolders: TStringList;
   OpenSSLHandler: TIdSSLIOHandlerSocketOpenSSL;
   res: boolean;
-  i, j, k: integer;
-  inbox, currUID: string;
-  cntMsg: integer;
+  i, j: integer;
+  inbox: string;
   msg, msg2: TIdMessage;
   s: string;
-  BodyTexts: TStringList;
-  flags: TIdMessageFlagsSet;
-  fileName_MailSource, TmpFolder: string;
   SearchInfo: array of TIdIMAP4SearchRec;
   Fs: TFormatSettings;
 begin
@@ -436,11 +578,17 @@ begin
 end;
 
 procedure TForm1.Timer1Timer(Sender: TObject);
-var
-  msgcnt, i: integer;
 begin
-  GetMailMsgs();
+  //GetMailMsgs();
 
+end;
+
+procedure TForm1.WMQueryEndSession(var Message: TWMQueryEndSession);
+begin
+  Shutdown := True;
+  AddLog('Shutdown windows', LogFile);
+  Message.Result := 1;
+  inherited;
 end;
 
 

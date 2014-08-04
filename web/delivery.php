@@ -125,6 +125,12 @@ function getListOrders() {
 	return $s;
 }
 
+function setOrderStatus($id_order,$status) {
+	global $my;
+	$sql = sprintf("UPDATE %s set status=%d where id_order=%d",DELIVERY_INFO_ORDER,$status,$id_order);
+	return $my->uquery($sql);
+}
+
 if (isset($_REQUEST["getlistorders"])) {
 	header("Content-type:text/plain; charset=windows-1251");
 	header("Last-Modified: ".gmdate("D, d M Y H:i:s")." GMT");
@@ -145,8 +151,14 @@ if (isset($_REQUEST["getxmlorder"])&&!empty($_REQUEST["id_order"])) {
 		echo $res["xml"];	
 	} else {
 		header("Content-type:text/plain; charset=utf-8");
-	}
-	
+	}	
+}
+
+if (isset($_REQUEST["setorderstatus"])&&!empty($_REQUEST["id_order"])&&isset($_REQUEST["status"])) {	
+	$id_order=(int)substr(strip_tags(stripslashes(trim($_REQUEST["id_order"]))),0,16);
+	$status=(int)substr(strip_tags(stripslashes(trim($_REQUEST["status"]))),0,16);
+	header("Content-type:text/plain; charset=utf-8");
+	echo setOrderStatus($id_order,$status);	
 }
 	
 

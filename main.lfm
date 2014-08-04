@@ -6,7 +6,9 @@ object Form1: TForm1
   Caption = 'Интернет заказы'
   ClientHeight = 495
   ClientWidth = 806
+  OnClose = FormClose
   OnCreate = FormCreate
+  Position = poScreenCenter
   LCLVersion = '1.2.4.0'
   object Memo1: TMemo
     Left = 250
@@ -72,6 +74,9 @@ object Form1: TForm1
     top = 32
   end
   object TrayIcon1: TTrayIcon
+    BalloonFlags = bfInfo
+    BalloonTimeout = 5000
+    PopUpMenu = PopupMenu1
     Icon.Data = {
       501702000000010006000000000001002000E291000066000000808000000100
       20002808010048920000404000000100200028420000709A0100303000000100
@@ -4358,7 +4363,28 @@ object Form1: TForm1
       8001AC418001AC41C003AC41E007AC41F01FAC41
     }
     Visible = True
+    OnDblClick = TrayIcon1DblClick
     left = 80
     top = 32
+  end
+  object PopupMenu1: TPopupMenu
+    left = 110
+    top = 128
+    object MenuItem1: TMenuItem
+      Caption = 'О программе'
+      OnClick = MenuItem1Click
+    end
+    object MenuItem2: TMenuItem
+      Caption = 'Показать'
+      OnClick = MenuItem2Click
+    end
+    object MenuItem3: TMenuItem
+      Caption = 'Запрос'
+      OnClick = MenuItem3Click
+    end
+    object MenuItem4: TMenuItem
+      Caption = 'Выход'
+      OnClick = MenuItem4Click
+    end
   end
 end
