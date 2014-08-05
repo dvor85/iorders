@@ -70,12 +70,14 @@ object Form1: TForm1
   object Timer1: TTimer
     Enabled = False
     OnTimer = Timer1Timer
+    OnStartTimer = Timer1StartTimer
+    OnStopTimer = Timer1StopTimer
     left = 8
     top = 32
   end
   object TrayIcon1: TTrayIcon
     BalloonFlags = bfInfo
-    BalloonTimeout = 5000
+    BalloonTimeout = 0
     PopUpMenu = PopupMenu1
     Icon.Data = {
       501702000000010006000000000001002000E291000066000000808000000100
