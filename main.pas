@@ -6,15 +6,15 @@ interface
 
 uses
   Classes, SysUtils, dateutils, Forms, Dialogs, ExtCtrls, StdCtrls, ComCtrls,
-  IniFiles, IdMessage, IdIMAP4, IdSSLOpenSSL, IdExplicitTLSClientServerBase,
-  IBConnection, sqldb, XMLRead, DOM, Windows, Controls,
-  Menus;
+  IniFiles, IdMessage, DOM, IdHTTP, IBConnection, Windows, Controls, Menus;
 
 type
 
   { TForm1 }
 
   TForm1 = class(TForm)
+    HttpClient: TIdHTTP;
+    myIbConnection: TIBConnection;
     ListBox1: TListBox;
     Memo1: TMemo;
     MenuItem1: TMenuItem;
@@ -42,38 +42,42 @@ type
 
     procedure Timer1Timer(Sender: TObject);
     procedure GetMailMsgs();
-    procedure getListOrders(var list: TStrings);
+    function getListOrders(var list: TStrings): boolean;
     function getXmlOrder(id_order: integer; var dest: TStream): string;
-    function setOrderStatus(id_order: string; status: string): string;
+    function setOrderStatus(id_order: integer; status: integer): string;
 
-    procedure LoadOrders();
+    function LoadOrders(): integer;
     procedure TrayIcon1DblClick(Sender: TObject);
   private
     { private declarations }
     ini: TIniFile;
-
+    LoadError: boolean;
+    LogFile: string;
+    Shutdown: boolean;
     procedure WMQueryEndSession(var Message: TWMQueryEndSession);
       message WM_QUERYENDSESSION;
     function getNodeValue(var xml: TXmlDocument; dname: string): string;
     procedure BeepOnNewOrders;
-    procedure formatOrderInfo(id_order: string; var xml: TXmlDocument;
+    procedure formatOrderInfo(id_order: integer; var xml: TXmlDocument;
       var orderInfo: TStrings);
-    procedure InsertToBase(fn: string; var src: TMemoryStream);
+    function InsertToBase(id_order: integer; fn: string;
+      var src: TMemoryStream): integer;
     procedure ShowBalloon(Msg: string; flag: TBalloonFlags);
+    function OrderExists(id_order: integer): boolean;
   public
     { public declarations }
   end;
 
 var
   Form1: TForm1;
-  LogFile: string;
-  Shutdown: boolean = False;
+
 
 
 
 implementation
 
-uses IdText, IdAttachment, IdHTTP, IdMessageParts, base64;
+uses IdText, IdAttachment, IdMessageParts, base64, IdIMAP4, IdSSLOpenSSL,
+  IdExplicitTLSClientServerBase, sqldb, XMLRead;
 
 {$R *.lfm}
 
@@ -127,7 +131,7 @@ begin
     BalloonFlags := flag;
     BalloonTitle := Form1.Caption;
     BalloonHint := Msg;
-    BalloonTimeout:=0;
+    BalloonTimeout := 3000;
     ShowBalloonHint;
   end;
 end;
@@ -166,32 +170,36 @@ begin
   if MessageDlg(Form1.Caption, 'Вы уверены что надо выйти?', mtConfirmation,
     mbYesNo, '') = mrYes then
   begin
-    Shutdown:=True;
+    Shutdown := True;
     Close;
   end;
 end;
 
 procedure TForm1.Timer1StartTimer(Sender: TObject);
 begin
-  AddLog('Program resume', LogFile);
+  AddLog('Process resume', LogFile);
 end;
 
 procedure TForm1.Timer1StopTimer(Sender: TObject);
 begin
-  AddLog('Program stop', LogFile);
+  AddLog('Process stop', LogFile);
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   Application.OnException := @CustomExceptionHandler;
-
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
-  Timer1.Interval := ini.ReadInteger('Global', 'Interval', 300000);
   TrayIcon1.Hint := Form1.Caption;
+  httpClient.ConnectTimeout := ini.ReadInteger('Http', 'TimeoutConnect', 5000);
+  httpClient.Request.Username := ini.ReadString('Http', 'Uname', '');
+  httpClient.Request.Password := DecodeStringBase64(ini.ReadString('Http', 'Upass', ''));
+  httpClient.Request.BasicAuthentication := True;
   AddLog('Program start', LogFile);
+  Shutdown := False;
 
-  LoadOrders();
+  Timer1.Interval := ini.ReadInteger('Global', 'Interval', 60000);
+  Timer1.Enabled := True;
 end;
 
 procedure TForm1.FormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -206,7 +214,7 @@ begin
   end;
 end;
 
-procedure TForm1.formatOrderInfo(id_order: string; var xml: TXmlDocument;
+procedure TForm1.formatOrderInfo(id_order: integer; var xml: TXmlDocument;
   var orderInfo: TStrings);
 var
   s: string;
@@ -214,8 +222,8 @@ var
   dn: TDOMNode;
 begin
   try
-    s := 'ЗАКАЗ №' + id_order + ' НА СУММУ: ' + getNodeValue(xml,
-      'order_summ') + ' руб.';
+    s := 'ЗАКАЗ №' + IntToStr(id_order) + ' НА СУММУ: ' +
+      getNodeValue(xml, 'order_summ') + ' руб.';
     orderInfo.Add(s);
     orderInfo.Add('-----------------------------------------');
     s := 'Имя: ' + getNodeValue(xml, 'f_name') + ' ' + getNodeValue(xml, 'm_name') +
@@ -283,58 +291,82 @@ begin
   Windows.Beep(700, 500);
 end;
 
-procedure TForm1.LoadOrders();
+function TForm1.LoadOrders(): integer;
 var
   orders: TStrings;
   xmlstream: TMemoryStream;
+  xml: TXMLDocument;
   orderInfo: TStrings;
   fn: string;
-  i, oc: integer;
-  xml: TXMLDocument;
+  i: integer;
   err: boolean;
+  Status: string;
+  id_order: integer;
 begin
+  Result := 0;
   err := False;
   orders := TStringList.Create;
-  oc := 0;
   try
     try
-      getListOrders(orders);
-      for i := 0 to orders.Count - 1 do
+      if getListOrders(orders) then
       begin
-        xmlstream := TMemoryStream.Create;
-        try
-          try
-            fn := getXmlOrder(StrToInt(orders[i]), TStream(xmlstream));
-            xmlstream.Position := 0;
-            ReadXMLFile(xml, xmlstream);
-            InsertToBase(fn, xmlstream);
-            orderInfo := TStringList.Create;
-            formatOrderInfo(orders[i], xml, orderInfo);
-            ListBox1.Items.InsertObject(0, 'Заказ ' + orders[i] +
-              ' от ' + getNodeValue(xml, 'wait_time'), TObject(orderInfo));
-
-            AddLog(format('New order %s with name: %s', [orders[i], fn]), LogFile);
-            // AddLog(format('Set status return: %s',
-            //   [setOrderStatus(orders[i], '1')]), LogFile);
-            Inc(oc);
-          except
-            on e: Exception do
-            begin
-              err := True;
-              continue;
-            end;
-          end;
-
-        finally
-          xml.Free;
-          xmlstream.Free;
+        with myIbConnection do
+        begin
+          DatabaseName := ini.ReadString('Global', 'DB', '');
+          UserName := 'SYSDBA';
+          Password := 'masterkey';
+          Connected := True;
         end;
-      end;
+        for i := 0 to orders.Count - 1 do
+        begin
+          id_order := StrToInt(orders[i]);
+          xmlstream := TMemoryStream.Create;
+          xml := TXMLDocument.Create;
+          try
+            try
+              if not OrderExists(id_order) then
+              begin
+                fn := getXmlOrder(id_order, TStream(xmlstream));
+                xmlstream.Position := 0;
+                ReadXMLFile(xml, xmlstream);
+                InsertToBase(id_order, fn, xmlstream);
+                orderInfo := TStringList.Create;
+                formatOrderInfo(id_order, xml, orderInfo);
+                ListBox1.Items.InsertObject(0,
+                  format('Заказ %d от %s', [id_order, getNodeValue(xml, 'wait_time')]),
+                  TObject(orderInfo));
+                AddLog(format('New order %d with name: %s', [id_order, fn]), LogFile);
+                Inc(Result);
+              end
+              else
+                AddLog(format('Order %d already exists in database',
+                  [id_order]), LogFile);
+
+              Status := setOrderStatus(id_order, 1);
+              AddLog(format('Set status order %d return: %s', [id_order, Status]),
+                LogFile);
+
+            except
+              on e: Exception do
+              begin
+                err := True;
+                continue;
+              end;
+            end;
+          finally
+            xml.Free;
+            xmlstream.Free;
+            Application.ProcessMessages;
+          end;
+        end;
+      end
+      else
+        err := True;
 
       StatusBarBottom.Panels.Items[0].Text := 'Last check: ' + DateTimeToStr(Now());
-      if oc > 0 then
+      if Result > 0 then
       begin
-        StatusBarBottom.Panels.Items[1].Text := Format('Новых заказов: %d', [oc]);
+        StatusBarBottom.Panels.Items[1].Text := Format('Новых заказов: %d', [Result]);
         ListBox1.ItemIndex := 0;
         ListBox1.Click;
         ShowBalloon(StatusBarBottom.Panels.Items[1].Text + #13#10 +
@@ -343,12 +375,14 @@ begin
           BeepOnNewOrders;
       end
       else
+      if err then
       begin
+        StatusBarBottom.Panels.Items[1].Text :=
+          'Возникли ошибки при получении заказа!';
+        ShowBalloon(StatusBarBottom.Panels.Items[1].Text, bfError);
+      end
+      else
         StatusBarBottom.Panels.Items[1].Text := 'Нет новых заказов';
-        if err then
-          ShowBalloon('Возникли ошибки при получении заказа!' + #13#10 +
-            'Правильная работа не гарантирована!', bfError);
-      end;
     except
       on e: Exception do
       begin
@@ -357,6 +391,7 @@ begin
     end;
   finally
     orders.Free;
+    myIbConnection.Connected := False;
   end;
 end;
 
@@ -365,31 +400,65 @@ begin
   Form1.ShowOnTop;
 end;
 
-procedure TForm1.InsertToBase(fn: string; var src: TMemoryStream);
+function TForm1.OrderExists(id_order: integer): boolean;
 var
   mysqlquery: TSQLQuery;
   mytransaction: TSQLTransaction;
-  myIbConnection: TIBConnection;
 begin
-  myIbConnection := TIBConnection.Create(Form1);
+  Result := False;
   mysqlquery := TSQLQuery.Create(Form1);
   mytransaction := TSQLTRansaction.Create(Form1);
   try
     try
-      myIbConnection.DatabaseName := ini.ReadString('Global', 'DB', '');
-      myIbConnection.UserName := 'SYSDBA';
-      myIbConnection.Password := 'masterkey';
-      myIbConnection.Connected := True;
       mytransaction.DataBase := myIbConnection;
       mytransaction.Active := True;
       with mysqlquery do
       begin
-        ReadOnly := False;
-        Database := myIbConnection;
-        Transaction := mytransaction;
+        DataBase := myIbConnection;
         SQL.Text :=
-          'INSERT INTO DLV_INTERNETORDERS (INETORDER_ID,INETORDER,FILENAME) VALUES ((select next value for dlv_inetorder_id_gen from RDB$DATABASE),:INETORDER,:FILENAME)';
+          'SELECT INETORDER_ID FROM DLV_INTERNETORDERS WHERE INETORDER_ID=:INETORDER_ID';
+        ParamByName('INETORDER_ID').AsInteger := id_order;
+        Active := True;
+        if RecordCount > 0 then
+          Result := True;
+        Close;
+      end;
+    except
+      on e: Exception do
+      begin
+        AddLog(E.Message + ' in function "OrderExists"', LogFile);
+        raise Exception.Create(E.Message);
+      end;
+    end;
+  finally
+    mysqlquery.Free;
+  end;
+end;
+
+function TForm1.InsertToBase(id_order: integer; fn: string;
+  var src: TMemoryStream): integer;
+var
+  mysqlquery: TSQLQuery;
+  mytransaction: TSQLTransaction;
+begin
+  Result := 0;
+  mysqlquery := TSQLQuery.Create(Form1);
+  mytransaction := TSQLTRansaction.Create(Form1);
+  try
+    try
+      mytransaction.DataBase := myIbConnection;
+      mytransaction.Active := True;
+      with mysqlquery do
+      begin
+        DataBase := myIbConnection;
+        ReadOnly := False;
+        Transaction := mytransaction;
+        //SQL.Text :=
+        //  'INSERT INTO DLV_INTERNETORDERS (INETORDER_ID,INETORDER,FILENAME) VALUES ((select next value for dlv_inetorder_id_gen from RDB$DATABASE),:INETORDER,:FILENAME)';
+        SQL.Text :=
+          'INSERT INTO DLV_INTERNETORDERS (INETORDER_ID,INETORDER,FILENAME) VALUES (:INETORDER_ID,:INETORDER,:FILENAME)';
         src.Position := 0;
+        ParamByName('INETORDER_ID').AsInteger := id_order;
         ParamByName('FILENAME').AsString := fn;
         ParamByName('INETORDER').AsBlob := PChar(src.Memory);
         ExecSQL;
@@ -399,6 +468,7 @@ begin
     except
       on e: Exception do
       begin
+        Result := 2;
         AddLog(E.Message + ' in function "InsertToBase"', LogFile);
         raise Exception.Create(E.Message);
       end;
@@ -406,21 +476,13 @@ begin
   finally
     mysqlquery.Free;
     mytransaction.Free;
-    myIbConnection.Free;
   end;
 end;
 
 function TForm1.getXmlOrder(id_order: integer; var dest: TStream): string;
 var
-  httpClient: TIdHTTP;
   Data: TStrings;
 begin
-  httpClient := TIdHTTP.Create;
-  httpClient.ConnectTimeout := ini.ReadInteger('Http', 'TimeoutConnect', 5000);
-  httpClient.Request.Username := ini.ReadString('Http', 'Uname', '');
-  httpClient.Request.Password := DecodeStringBase64(ini.ReadString('Http', 'Upass', ''));
-  httpClient.Request.BasicAuthentication := True;
-
   Data := TStringList.Create;
   Data.Add('getxmlorder=1');
   Data.Add('id_order=' + IntToStr(id_order));
@@ -438,61 +500,48 @@ begin
     end;
   finally
     Data.Free;
-    httpClient.Free;
   end;
 
 end;
 
-procedure TForm1.getListOrders(var list: TStrings);
+function TForm1.getListOrders(var list: TStrings): boolean;
 var
-  httpClient: TIdHTTP;
   Data: TStrings;
 begin
-  httpClient := TIdHTTP.Create;
-  httpClient.ConnectTimeout := ini.ReadInteger('Http', 'TimeoutConnect', 5000);
-  httpClient.Request.Username := ini.ReadString('Http', 'Uname', '');
-  httpClient.Request.Password := DecodeStringBase64(ini.ReadString('Http', 'Upass', ''));
-  httpClient.Request.BasicAuthentication := True;
+  Result := True;
   Data := TStringList.Create;
   Data.Add('getlistorders=1');
   try
     try
-      list.Text := httpClient.Post(ini.ReadString('Http', 'url', ''), Data);
+      list.Text := Trim(httpClient.Post(ini.ReadString('Http', 'url', ''), Data));
     except
       on e: Exception do
       begin
         AddLog(E.Message + ' in function "getListOrders"', LogFile);
-        raise Exception.Create(E.Message);
+        Result := False;
       end;
     end;
   finally
     Data.Free;
-    httpClient.Free;
   end;
 
 end;
 
-function TForm1.setOrderStatus(id_order: string; status: string): string;
+function TForm1.setOrderStatus(id_order: integer; status: integer): string;
 var
-  httpClient: TIdHTTP;
   Data: TStrings;
   res: TStringList;
 begin
-  httpClient := TIdHTTP.Create;
-  httpClient.ConnectTimeout := ini.ReadInteger('Http', 'TimeoutConnect', 5000);
-  httpClient.Request.Username := ini.ReadString('Http', 'Uname', '');
-  httpClient.Request.Password := DecodeStringBase64(ini.ReadString('Http', 'Upass', ''));
-  httpClient.Request.BasicAuthentication := True;
   Data := TStringList.Create;
   res := TStringList.Create;
   Data.Add('setorderstatus=1');
-  Data.Add('id_order=' + id_order);
-  Data.Add('status=' + status);
+  Data.Add('id_order=' + IntToStr(id_order));
+  Data.Add('status=' + IntToStr(status));
   Result := '';
   try
     try
-      res.Text := httpClient.Post(ini.ReadString('Http', 'url', ''), Data);
-      Result := res.Text;
+      res.Text := Trim(httpClient.Post(ini.ReadString('Http', 'url', ''), Data));
+      Result := res.Values['status'];
     except
       on e: Exception do
       begin
@@ -503,7 +552,6 @@ begin
   finally
     res.Free;
     Data.Free;
-    httpClient.Free;
   end;
 
 end;
@@ -594,15 +642,11 @@ begin
                 end;
               end;
             end;
-
           finally
             FreeAndNil(msg);
           end;
-
         end;
-
       finally
-
         IMAPClient.Disconnect;
       end;
     finally
@@ -615,8 +659,7 @@ end;
 
 procedure TForm1.Timer1Timer(Sender: TObject);
 begin
-  //
-
+  LoadOrders();
 end;
 
 procedure TForm1.WMQueryEndSession(var Message: TWMQueryEndSession);

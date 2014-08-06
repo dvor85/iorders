@@ -1,7 +1,7 @@
 object Form1: TForm1
-  Left = 1031
+  Left = 653
   Height = 495
-  Top = 479
+  Top = 265
   Width = 806
   Caption = 'Интернет заказы'
   ClientHeight = 495
@@ -4388,5 +4388,28 @@ object Form1: TForm1
       Caption = 'Выход'
       OnClick = MenuItem4Click
     end
+  end
+  object HttpClient: TIdHTTP
+    AllowCookies = True
+    ProxyParams.BasicAuthentication = False
+    ProxyParams.ProxyPort = 0
+    Request.ContentLength = -1
+    Request.Date = 0
+    Request.Expires = 0
+    Request.LastModified = 0
+    Request.Accept = 'text/html, */*'
+    Request.BasicAuthentication = False
+    Request.UserAgent = 'Mozilla/3.0 (compatible; Indy Library)'
+    HTTPOptions = [hoForceEncodeParams]
+    left = 16
+    top = 120
+  end
+  object myIbConnection: TIBConnection
+    Connected = False
+    LoginPrompt = False
+    KeepConnection = False
+    LogEvents = []
+    left = 48
+    top = 208
   end
 end

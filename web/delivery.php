@@ -145,7 +145,7 @@ if (isset($_REQUEST["getxmlorder"])&&!empty($_REQUEST["id_order"])) {
 		$file_name="d_".date("dmYHisB",$res["datetime"]).".xml";
 		header("Content-type:text/xml; charset=utf-8");				
 		header("Content-Disposition: attachment; filename=\"$file_name\"");
-		header('Content-Transfer-Encoding: binary');
+		header("Content-Transfer-Encoding: binary");
 		header("Last-Modified: ".gmdate("D, d M Y H:i:s")." GMT");
 		header("Pragma: no-cache");
 		echo $res["xml"];	
@@ -158,7 +158,7 @@ if (isset($_REQUEST["setorderstatus"])&&!empty($_REQUEST["id_order"])&&isset($_R
 	$id_order=(int)substr(strip_tags(stripslashes(trim($_REQUEST["id_order"]))),0,16);
 	$status=(int)substr(strip_tags(stripslashes(trim($_REQUEST["status"]))),0,16);
 	header("Content-type:text/plain; charset=utf-8");
-	echo setOrderStatus($id_order,$status);	
+	echo "status=".setOrderStatus($id_order,$status);	
 }
 	
 
