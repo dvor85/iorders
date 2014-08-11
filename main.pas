@@ -5,8 +5,8 @@ unit main;
 interface
 
 uses
-  Classes, SysUtils, dateutils, Forms, Dialogs, ExtCtrls, StdCtrls, ComCtrls,
-  IniFiles, IdMessage, DOM, IdHTTP, IBConnection, Windows, Controls, Menus;
+  Classes, SysUtils, Forms, Dialogs, ExtCtrls, StdCtrls, ComCtrls, IniFiles,
+  DOM, IdHTTP, IBConnection, Windows, Controls, Menus, Updater;
 
 type
 
@@ -29,7 +29,6 @@ type
     TrayIcon1: TTrayIcon;
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCreate(Sender: TObject);
-    procedure CustomExceptionHandler(Sender: TObject; E: Exception);
     procedure ListBox1Click(Sender: TObject);
     procedure MenuItem1Click(Sender: TObject);
     procedure MenuItem2Click(Sender: TObject);
@@ -38,10 +37,8 @@ type
     procedure Timer1StartTimer(Sender: TObject);
     procedure Timer1StopTimer(Sender: TObject);
 
-
-
     procedure Timer1Timer(Sender: TObject);
-    procedure GetMailMsgs();
+    //procedure GetMailMsgs();
     function getListOrders(var list: TStrings): boolean;
     function getXmlOrder(id_order: integer; var dest: TStream): string;
     function setOrderStatus(id_order: integer; status: integer): string;
@@ -51,11 +48,11 @@ type
   private
     { private declarations }
     ini: TIniFile;
-    LoadError: boolean;
     LogFile: string;
     Shutdown: boolean;
-    procedure WMQueryEndSession(var Message: TWMQueryEndSession);
-      message WM_QUERYENDSESSION;
+    Version: string;
+    procedure CustomExceptionHandler(Sender: TObject; E: Exception);
+    procedure AppEndSession(Sender: TObject);
     function getNodeValue(var xml: TXmlDocument; dname: string): string;
     procedure BeepOnNewOrders;
     procedure formatOrderInfo(id_order: integer; var xml: TXmlDocument;
@@ -70,14 +67,15 @@ type
 
 var
   Form1: TForm1;
+  Upd: TUpdater;
 
 
 
 
 implementation
 
-uses IdText, IdAttachment, IdMessageParts, base64, IdIMAP4, IdSSLOpenSSL,
-  IdExplicitTLSClientServerBase, sqldb, XMLRead;
+uses IdMessageParts, base64,
+  sqldb, XMLRead;
 
 {$R *.lfm}
 
@@ -188,15 +186,41 @@ end;
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   Application.OnException := @CustomExceptionHandler;
+  Application.OnEndSession := @AppEndSession;
+  Upd := TUpdater.Create;
+  Version := '2.01';
+  Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
   TrayIcon1.Hint := Form1.Caption;
-  httpClient.ConnectTimeout := ini.ReadInteger('Http', 'TimeoutConnect', 5000);
-  httpClient.Request.Username := ini.ReadString('Http', 'Uname', '');
-  httpClient.Request.Password := DecodeStringBase64(ini.ReadString('Http', 'Upass', ''));
-  httpClient.Request.BasicAuthentication := True;
+  with httpClient do
+  begin
+    ConnectTimeout := ini.ReadInteger('Http', 'TimeoutConnect', 5000);
+    Request.Username := ini.ReadString('Http', 'Uname', '');
+    Request.Password := DecodeStringBase64(ini.ReadString('Http', 'Upass', ''));
+    Request.BasicAuthentication := True;
+    Request.UserAgent := ExtractFileName(ParamStr(0)) + ' v.' + Version;
+  end;
   AddLog('Program start', LogFile);
   Shutdown := False;
+
+  with myIbConnection do
+  begin
+    DatabaseName := ini.ReadString('Global', 'DB', '');
+    UserName := 'SYSDBA';
+    Password := 'masterkey';
+  end;
+
+  with Upd do
+  begin
+    CurrentVersion := Version;
+    VersionIndexURI := ini.ReadString('http', 'updurl', '');
+    Username := HttpClient.Request.Username;
+    Password := HttpClient.Request.Password;
+    SelfTimer := False;
+  end;
+  if Upd.NewVersion > Upd.CurrentVersion then
+    Upd.UpdateFiles;
 
   Timer1.Interval := ini.ReadInteger('Global', 'Interval', 60000);
   Timer1.Enabled := True;
@@ -210,6 +234,7 @@ begin
   begin
     CloseAction := caFree;
     ini.Free;
+    upd.Free;
     AddLog('Exit program', LogFile);
   end;
 end;
@@ -302,6 +327,7 @@ var
   err: boolean;
   Status: string;
   id_order: integer;
+  delivery_id_order: integer;
 begin
   Result := 0;
   err := False;
@@ -310,26 +336,22 @@ begin
     try
       if getListOrders(orders) then
       begin
-        with myIbConnection do
-        begin
-          DatabaseName := ini.ReadString('Global', 'DB', '');
-          UserName := 'SYSDBA';
-          Password := 'masterkey';
-          Connected := True;
-        end;
+        myIbConnection.Connected := True;
         for i := 0 to orders.Count - 1 do
         begin
           id_order := StrToInt(orders[i]);
+          delivery_id_order :=
+            id_order + ini.ReadInteger('Global', 'DeliveryOrderStart', 0);
           xmlstream := TMemoryStream.Create;
           xml := TXMLDocument.Create;
           try
             try
-              if not OrderExists(id_order) then
+              if not OrderExists(delivery_id_order) then
               begin
                 fn := getXmlOrder(id_order, TStream(xmlstream));
                 xmlstream.Position := 0;
                 ReadXMLFile(xml, xmlstream);
-                InsertToBase(id_order, fn, xmlstream);
+                InsertToBase(delivery_id_order, fn, xmlstream);
                 orderInfo := TStringList.Create;
                 formatOrderInfo(id_order, xml, orderInfo);
                 ListBox1.Items.InsertObject(0,
@@ -556,6 +578,7 @@ begin
 
 end;
 
+{
 procedure TForm1.GetMailMsgs();
 var
   IMAPClient: TIdIMAP4;
@@ -655,19 +678,20 @@ begin
   finally
     IMAPClient.Free;
   end;
-end;
+end; }
 
 procedure TForm1.Timer1Timer(Sender: TObject);
 begin
+  if Upd.NewVersion > Upd.CurrentVersion then
+    Upd.UpdateFiles;
   LoadOrders();
 end;
 
-procedure TForm1.WMQueryEndSession(var Message: TWMQueryEndSession);
+procedure TForm1.AppEndSession(Sender: TObject);
 begin
   Shutdown := True;
   AddLog('Shutdown windows', LogFile);
-  Message.Result := 1;
-  inherited;
+  Close;
 end;
 
 
