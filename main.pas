@@ -188,7 +188,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.01';
+  Version := '2.02';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -213,6 +213,7 @@ begin
 
   with Upd do
   begin
+    LogFilename:=LogFile;
     CurrentVersion := Version;
     VersionIndexURI := ini.ReadString('http', 'updurl', '');
     Username := HttpClient.Request.Username;

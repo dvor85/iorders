@@ -39,7 +39,7 @@ type
     constructor Create;
     destructor Destroy; override;
     function UpdateFiles: integer;
-    property LogFile: string read FLogFile write FLogFile;
+    property LogFilename: string read FLogFile write FLogFile;
     property VersionIndexURI: string read FVersionIndexURI write SetVersionIndexURI;
     property FilesList: TStringList read FFilesList;
     property Username: string read FUserName write SetUserName;
