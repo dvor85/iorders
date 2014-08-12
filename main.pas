@@ -191,7 +191,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.03';
+  Version := '2.04';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -387,6 +387,14 @@ begin
         end;
       end;
 
+    except
+      on e: Exception do
+      begin
+        AddLog(E.Message + ' in function "LoadOrders"', LogFile);
+        err := True;
+      end;
+    end;
+    try
       StatusBarBottom.Panels.Items[0].Text := 'Last check: ' + DateTimeToStr(Now());
       if Result > 0 then
       begin
@@ -407,6 +415,7 @@ begin
       end
       else
         StatusBarBottom.Panels.Items[1].Text := 'Нет новых заказов';
+
     except
       on e: Exception do
       begin
