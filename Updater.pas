@@ -22,6 +22,7 @@ type
     FTimer: TTimer;
     FUpdateInterval: cardinal;
     FSelfTimer: boolean;
+    FChecked: boolean;
     procedure TimerProc(Sender: TObject);
     procedure AddLog(LogString: string);
     procedure SplitStr(const Str: string; const Sym: string; var Data: TstrArray);
@@ -47,6 +48,7 @@ type
     property CurrentVersion: string read FCurVersion write SetCurrentVersion;
     property NewVersion: string read GetNewVersionNo write FNewVersion;
     property SelfTimer: boolean read FSelfTimer write SetSelfTimer;
+    property Checked: boolean read FChecked;
     property UpdateInterval: cardinal read FUpdateInterval write SetUpdateInterval;
   end;
 
@@ -78,6 +80,7 @@ begin
   FUpdateInterval := 1000;
   FTimer.Interval := FUpdateInterval;
   FSelfTimer := False;
+  FChecked := False;
   FTimer.Enabled := FSelfTimer;
   FTimer.OnTimer := @TimerProc;
 end;
@@ -175,6 +178,7 @@ begin
     FFilesList.Text := IdHTTP.Get(FVersionIndexURI);
     Result := FFilesList[0];
     FFilesList.Delete(0);
+    FChecked := True;
   except
     Result := '';
     FFilesList.Clear;
@@ -327,7 +331,10 @@ begin
     if FileExists(FLogFile) then
       F := TFileStream.Create(FLogFile, fmOpenWrite)
     else
+    begin
+      ForceDirectories(ExtractFileDir(FLogFile));
       F := TFileStream.Create(FLogFile, fmCreate);
+    end;
   except
     Exit;
   end;

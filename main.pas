@@ -96,7 +96,10 @@ begin
     if FileExists(LogFileName) then
       F := TFileStream.Create(LogFileName, fmOpenWrite)
     else
+    begin
+      ForceDirectories(ExtractFileDir(LogFileName));
       F := TFileStream.Create(LogFileName, fmCreate);
+    end;
   except
     MessageDlg(Form1.Caption, LogString, mtError, [mbYes], 0);
     Exit;
@@ -188,7 +191,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.02';
+  Version := '2.03';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -201,7 +204,7 @@ begin
     Request.BasicAuthentication := True;
     Request.UserAgent := ExtractFileName(ParamStr(0)) + ' v.' + Version;
   end;
-  AddLog('Program start', LogFile);
+  AddLog('START', LogFile);
   Shutdown := False;
 
   with myIbConnection do
@@ -213,15 +216,13 @@ begin
 
   with Upd do
   begin
-    LogFilename:=LogFile;
+    LogFilename := LogFile;
     CurrentVersion := Version;
     VersionIndexURI := ini.ReadString('http', 'updurl', '');
     Username := HttpClient.Request.Username;
     Password := HttpClient.Request.Password;
     SelfTimer := False;
   end;
-  if Upd.NewVersion > Upd.CurrentVersion then
-    Upd.UpdateFiles;
 
   Timer1.Interval := ini.ReadInteger('Global', 'Interval', 60000);
   Timer1.Enabled := True;
@@ -236,7 +237,8 @@ begin
     CloseAction := caFree;
     ini.Free;
     upd.Free;
-    AddLog('Exit program', LogFile);
+    Timer1.Enabled := False;
+    AddLog('EXIT', LogFile);
   end;
 end;
 
@@ -335,7 +337,8 @@ begin
   orders := TStringList.Create;
   try
     try
-      if getListOrders(orders) then
+      err := not getListOrders(orders);
+      if (not err) and (orders.Count > 0) then
       begin
         myIbConnection.Connected := True;
         for i := 0 to orders.Count - 1 do
@@ -382,9 +385,7 @@ begin
             Application.ProcessMessages;
           end;
         end;
-      end
-      else
-        err := True;
+      end;
 
       StatusBarBottom.Panels.Items[0].Text := 'Last check: ' + DateTimeToStr(Now());
       if Result > 0 then
@@ -683,8 +684,9 @@ end; }
 
 procedure TForm1.Timer1Timer(Sender: TObject);
 begin
-  if Upd.NewVersion > Upd.CurrentVersion then
-    Upd.UpdateFiles;
+  if not upd.Checked then
+    if Upd.NewVersion > Upd.CurrentVersion then
+      Upd.UpdateFiles;
   LoadOrders();
 end;
 
