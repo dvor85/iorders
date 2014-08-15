@@ -74,8 +74,7 @@ var
 
 implementation
 
-uses IdMessageParts, base64,
-  sqldb, XMLRead;
+uses IdMessageParts, base64, sqldb, XMLRead, dateutils;
 
 {$R *.lfm}
 
@@ -191,7 +190,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.04';
+  Version := '2.05';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -331,10 +330,20 @@ var
   Status: string;
   id_order: integer;
   delivery_id_order: integer;
+  FS: TFormatSettings;
+  dateorder: TDateTime;
 begin
   Result := 0;
   err := False;
   orders := TStringList.Create;
+  with FS do
+  begin
+    LongDateFormat := 'dd.mm.yyyy hh:nn:ss';
+    DateSeparator := '.';
+    TimeSeparator := ':';
+    ShortDateFormat := 'dd.mm.yyyy';
+    ShortTimeFormat := 'hh:nn:ss';
+  end;
   try
     try
       err := not getListOrders(orders);
@@ -358,8 +367,10 @@ begin
                 InsertToBase(delivery_id_order, fn, xmlstream);
                 orderInfo := TStringList.Create;
                 formatOrderInfo(id_order, xml, orderInfo);
+                dateorder := IncSecond(StrToDateTime(getNodeValue(xml, 'wait_time'), FS),
+                  -ini.ReadInteger('Global', 'DeliveryTime', 0));
                 ListBox1.Items.InsertObject(0,
-                  format('Заказ %d от %s', [id_order, getNodeValue(xml, 'wait_time')]),
+                  format('Заказ %d от %s', [id_order, DateTimeToStr(dateorder)]),
                   TObject(orderInfo));
                 AddLog(format('New order %d with name: %s', [id_order, fn]), LogFile);
                 Inc(Result);
@@ -473,10 +484,12 @@ function TForm1.InsertToBase(id_order: integer; fn: string;
 var
   mysqlquery: TSQLQuery;
   mytransaction: TSQLTransaction;
+  buf: PChar;
 begin
   Result := 0;
   mysqlquery := TSQLQuery.Create(Form1);
   mytransaction := TSQLTRansaction.Create(Form1);
+  buf := AllocMem(src.size);
   try
     try
       mytransaction.DataBase := myIbConnection;
@@ -493,7 +506,8 @@ begin
         src.Position := 0;
         ParamByName('INETORDER_ID').AsInteger := id_order;
         ParamByName('FILENAME').AsString := fn;
-        ParamByName('INETORDER').AsBlob := PChar(src.Memory);
+        strlcopy(buf, src.Memory, src.size);
+        ParamByName('INETORDER').AsBlob := buf;
         ExecSQL;
         mytransaction.Commit;
         Close;
@@ -507,6 +521,7 @@ begin
       end;
     end;
   finally
+    Freemem(buf);
     mysqlquery.Free;
     mytransaction.Free;
   end;

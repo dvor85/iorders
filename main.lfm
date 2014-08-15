@@ -16,6 +16,8 @@ object Form1: TForm1
     Top = 28
     Width = 556
     Align = alClient
+    Font.Pitch = fpFixed
+    ParentFont = False
     TabOrder = 0
   end
   object ListBox1: TListBox

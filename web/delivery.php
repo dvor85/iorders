@@ -114,8 +114,8 @@ function get_xmlorder($id_order)
 function getListOrders() {
 	global $my;
 	$s="";
-	//$sql = sprintf("SELECT * FROM %s where status=0 and DATE(wait_time)=DATE()",DELIVERY_INFO_ORDER);
-	$sql = sprintf("SELECT id_order FROM %s where status=0",DELIVERY_INFO_ORDER);
+	$sql = sprintf("SELECT * FROM %s where status=0 and DATE(wait_time)=CURDATE()",DELIVERY_INFO_ORDER);
+	//$sql = sprintf("SELECT id_order FROM %s where status=0",DELIVERY_INFO_ORDER);
 	$orders=&$my->query($sql);	
 	if ($orders) {		
 		for ($i=0;$i<count($orders);$i++) {
