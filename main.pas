@@ -190,7 +190,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.05';
+  Version := '2.06';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -548,6 +548,7 @@ begin
     end;
   finally
     Data.Free;
+    HttpClient.Disconnect();
   end;
 
 end;
@@ -571,6 +572,7 @@ begin
     end;
   finally
     Data.Free;
+    HttpClient.Disconnect();
   end;
 
 end;
@@ -600,6 +602,7 @@ begin
   finally
     res.Free;
     Data.Free;
+    HttpClient.Disconnect();
   end;
 
 end;

@@ -4,17 +4,15 @@
     <PathDelim Value="\"/>
     <Version Value="9"/>
     <BuildModes Active="Default"/>
-    <Units Count="37">
+    <Units Count="38">
       <Unit0>
         <Filename Value="iorders.lpr"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="iorders"/>
-        <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="1" Y="20"/>
-        <UsageCount Value="113"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="114"/>
       </Unit0>
       <Unit1>
         <Filename Value="main.pas"/>
@@ -26,10 +24,10 @@
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="182"/>
-        <CursorPos X="19" Y="193"/>
-        <FoldState Value=" TLv40{J/"/>
-        <UsageCount Value="113"/>
+        <TopLine Value="179"/>
+        <CursorPos X="24" Y="191"/>
+        <FoldState Value=" TLv70{Jq"/>
+        <UsageCount Value="114"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
@@ -200,12 +198,10 @@
       <Unit23>
         <Filename Value="D:\lazarus\fpc\2.6.4\source\packages\fcl-db\src\base\db.pas"/>
         <UnitName Value="db"/>
-        <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1120"/>
         <CursorPos X="55" Y="1113"/>
         <UsageCount Value="10"/>
-        <Loaded Value="True"/>
       </Unit23>
       <Unit24>
         <Filename Value="D:\lazarus\lcl\graphics.pp"/>
@@ -281,12 +277,10 @@
       <Unit33>
         <Filename Value="Updater.pas"/>
         <UnitName Value="Updater"/>
-        <EditorIndex Value="3"/>
         <WindowIndex Value="0"/>
         <TopLine Value="151"/>
         <CursorPos X="21" Y="170"/>
         <UsageCount Value="27"/>
-        <Loaded Value="True"/>
       </Unit33>
       <Unit34>
         <Filename Value="ShellProcess.pas"/>
@@ -312,131 +306,103 @@
         <CursorPos X="37" Y="227"/>
         <UsageCount Value="10"/>
       </Unit36>
+      <Unit37>
+        <Filename Value="D:\lazarus\fpc\2.6.4\source\packages\indy\IdTCPConnection.pas"/>
+        <UnitName Value="IdTCPConnection"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="386"/>
+        <CursorPos X="47" Y="401"/>
+        <UsageCount Value="10"/>
+      </Unit37>
     </Units>
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
-    <JumpHistory Count="30" HistoryIndex="29">
+    <JumpHistory Count="21" HistoryIndex="20">
       <Position1>
-        <Filename Value="Updater.pas"/>
-        <Caret Line="19" Column="13" TopLine="6"/>
+        <Filename Value="main.pas"/>
+        <Caret Line="689" Column="14" TopLine="576"/>
       </Position1>
       <Position2>
-        <Filename Value="Updater.pas"/>
-        <Caret Line="51" Column="44" TopLine="42"/>
+        <Filename Value="main.pas"/>
+        <Caret Line="341" Column="13" TopLine="328"/>
       </Position2>
       <Position3>
-        <Filename Value="Updater.pas"/>
-        <Caret Line="83" Column="14" TopLine="72"/>
+        <Filename Value="main.pas"/>
+        <Caret Line="531" Column="59" TopLine="512"/>
       </Position3>
       <Position4>
         <Filename Value="main.pas"/>
-        <Caret Line="689" Column="14" TopLine="576"/>
+        <Caret Line="42" Column="56" TopLine="30"/>
       </Position4>
       <Position5>
-        <Filename Value="iorders.lpr"/>
-        <Caret Line="20" Column="1" TopLine="1"/>
+        <Filename Value="main.pas"/>
+        <Caret Line="546" Column="21" TopLine="527"/>
       </Position5>
       <Position6>
         <Filename Value="main.pas"/>
-        <Caret Line="341" Column="13" TopLine="328"/>
+        <Caret Line="341" Column="10" TopLine="324"/>
       </Position6>
       <Position7>
         <Filename Value="main.pas"/>
-        <Caret Line="531" Column="59" TopLine="512"/>
+        <Caret Line="364" Column="21" TopLine="335"/>
       </Position7>
       <Position8>
         <Filename Value="main.pas"/>
-        <Caret Line="42" Column="56" TopLine="30"/>
+        <Caret Line="388" Column="11" TopLine="377"/>
       </Position8>
       <Position9>
         <Filename Value="main.pas"/>
-        <Caret Line="546" Column="21" TopLine="527"/>
+        <Caret Line="341" Column="17" TopLine="329"/>
       </Position9>
       <Position10>
         <Filename Value="main.pas"/>
-        <Caret Line="341" Column="10" TopLine="324"/>
+        <Caret Line="341" Column="18" TopLine="329"/>
       </Position10>
       <Position11>
         <Filename Value="main.pas"/>
-        <Caret Line="364" Column="21" TopLine="335"/>
+        <Caret Line="255" Column="24" TopLine="245"/>
       </Position11>
       <Position12>
         <Filename Value="main.pas"/>
-        <Caret Line="388" Column="11" TopLine="377"/>
+        <Caret Line="343" Column="35" TopLine="343"/>
       </Position12>
       <Position13>
         <Filename Value="main.pas"/>
-        <Caret Line="341" Column="17" TopLine="329"/>
+        <Caret Line="369" Column="125" TopLine="357"/>
       </Position13>
       <Position14>
         <Filename Value="main.pas"/>
-        <Caret Line="341" Column="18" TopLine="329"/>
+        <Caret Line="12" Column="43" TopLine="7"/>
       </Position14>
       <Position15>
         <Filename Value="main.pas"/>
-        <Caret Line="255" Column="24" TopLine="245"/>
+        <Caret Line="509" Column="8" TopLine="494"/>
       </Position15>
       <Position16>
-        <Filename Value="iorders.lpr"/>
-        <Caret Line="20" Column="1" TopLine="1"/>
+        <Filename Value="main.pas"/>
+        <Caret Line="508" Column="55" TopLine="496"/>
       </Position16>
       <Position17>
         <Filename Value="main.pas"/>
-        <Caret Line="343" Column="35" TopLine="343"/>
+        <Caret Line="510" Column="9" TopLine="502"/>
       </Position17>
       <Position18>
         <Filename Value="main.pas"/>
-        <Caret Line="369" Column="125" TopLine="357"/>
+        <Caret Line="506" Column="53" TopLine="488"/>
       </Position18>
       <Position19>
         <Filename Value="main.pas"/>
-        <Caret Line="12" Column="43" TopLine="7"/>
+        <Caret Line="506" Column="53" TopLine="488"/>
       </Position19>
       <Position20>
-        <Filename Value="iorders.lpr"/>
-        <Caret Line="14" Column="29" TopLine="1"/>
+        <Filename Value="main.pas"/>
+        <Caret Line="564" Column="76" TopLine="554"/>
       </Position20>
       <Position21>
         <Filename Value="main.pas"/>
-        <Caret Line="509" Column="8" TopLine="494"/>
+        <Caret Line="569" Column="31" TopLine="549"/>
       </Position21>
-      <Position22>
-        <Filename Value="main.pas"/>
-        <Caret Line="508" Column="55" TopLine="496"/>
-      </Position22>
-      <Position23>
-        <Filename Value="main.pas"/>
-        <Caret Line="510" Column="9" TopLine="502"/>
-      </Position23>
-      <Position24>
-        <Filename Value="iorders.lpr"/>
-        <Caret Line="18" Column="31" TopLine="1"/>
-      </Position24>
-      <Position25>
-        <Filename Value="iorders.lpr"/>
-        <Caret Line="20" Column="1" TopLine="1"/>
-      </Position25>
-      <Position26>
-        <Filename Value="main.pas"/>
-        <Caret Line="506" Column="53" TopLine="488"/>
-      </Position26>
-      <Position27>
-        <Filename Value="D:\lazarus\fpc\2.6.4\source\packages\fcl-db\src\base\db.pas"/>
-        <Caret Line="1187" Column="14" TopLine="1177"/>
-      </Position27>
-      <Position28>
-        <Filename Value="main.pas"/>
-        <Caret Line="506" Column="53" TopLine="488"/>
-      </Position28>
-      <Position29>
-        <Filename Value="D:\lazarus\fpc\2.6.4\source\packages\fcl-db\src\base\db.pas"/>
-        <Caret Line="1187" Column="14" TopLine="1177"/>
-      </Position29>
-      <Position30>
-        <Filename Value="D:\lazarus\fpc\2.6.4\source\packages\fcl-db\src\base\db.pas"/>
-        <Caret Line="1153" Column="15" TopLine="1141"/>
-      </Position30>
     </JumpHistory>
   </ProjectSession>
   <EditorMacros Count="0"/>
