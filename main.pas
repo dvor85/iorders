@@ -548,7 +548,7 @@ begin
     end;
   finally
     Data.Free;
-    HttpClient.Disconnect();
+    HttpClient.Disconnect;
   end;
 
 end;
@@ -572,7 +572,7 @@ begin
     end;
   finally
     Data.Free;
-    HttpClient.Disconnect();
+    HttpClient.Disconnect;
   end;
 
 end;
@@ -602,7 +602,7 @@ begin
   finally
     res.Free;
     Data.Free;
-    HttpClient.Disconnect();
+    HttpClient.Disconnect;
   end;
 
 end;

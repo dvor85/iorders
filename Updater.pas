@@ -175,14 +175,18 @@ end;
 function TUpdater.GetNewVersionNo: string;
 begin
   try
-    FFilesList.Text := IdHTTP.Get(FVersionIndexURI);
-    Result := FFilesList[0];
-    FFilesList.Delete(0);
-    FChecked := True;
-  except
-    Result := '';
-    FFilesList.Clear;
-    Exit;
+    try
+      FFilesList.Text := IdHTTP.Get(FVersionIndexURI);
+      Result := FFilesList[0];
+      FFilesList.Delete(0);
+      FChecked := True;
+    except
+      Result := '';
+      FFilesList.Clear;
+      Exit;
+    end;
+  finally
+    IdHTTP.Disconnect;
   end;
 end;
 
@@ -251,6 +255,7 @@ begin
             end
           finally
             response.Clear;
+            IdHTTP.Disconnect;
             ProcessMessage;
           end;
 
