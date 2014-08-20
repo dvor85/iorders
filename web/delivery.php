@@ -1,5 +1,5 @@
 <?php
-ini_set('display_errors',1);
+//ini_set('display_errors',1);
 require_once("../config/cf.php");	
 require_once("../config/classes.php");	
 require_once("../config/functions.php");
@@ -114,12 +114,12 @@ function get_xmlorder($id_order)
 function getListOrders() {
 	global $my;
 	$s="";
-	$sql = sprintf("SELECT * FROM %s where status=0 and DATE(wait_time)=CURDATE() ORDER BY id_order",DELIVERY_INFO_ORDER);
-	//$sql = sprintf("SELECT id_order FROM %s where status=0 ORDER BY id_order",DELIVERY_INFO_ORDER);
+	//$sql = sprintf("SELECT id_order,status FROM %s where status in (0,1,2,3,4) and DATE(wait_time)=CURDATE()",DELIVERY_INFO_ORDER);
+	$sql = sprintf("SELECT id_order,status FROM %s where status in (0,1,2,3,4)",DELIVERY_INFO_ORDER);
 	$orders=&$my->query($sql);	
 	if ($orders) {		
 		for ($i=0;$i<count($orders);$i++) {
-			$s.=$orders[$i]["id_order"]."\r\n";		
+			$s.=$orders[$i]["id_order"]."=".$orders[$i]["status"]."\r\n";		
 		}
 	}
 	return $s;
@@ -127,7 +127,27 @@ function getListOrders() {
 
 function setOrderStatus($id_order,$status) {
 	global $my;
-	$sql = sprintf("UPDATE %s set status=%d WHERE id_order=%d",DELIVERY_INFO_ORDER,$status,$id_order);
+	$sql = sprintf("UPDATE %s set status=%d where id_order=%d",DELIVERY_INFO_ORDER,$status,$id_order);
+	switch ($status) {
+		case -1: 
+			echo "Отмена заказа";
+			break;
+		case 1:
+			echo "Заказ добавлен в базу интернет заказов";
+			break;
+		case 2:
+			echo "Заказ добавлен в базу заказов";
+			break;
+		case 3:
+			echo "Заказ добавлен в производство";
+			break;				
+		case 4:
+			echo "Заказ отправлен";
+			break;
+		case 5:
+			echo "Заказ доставлен и оплачен";
+			break;		
+	}
 	return $my->uquery($sql);
 }
 

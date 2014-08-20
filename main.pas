@@ -10,6 +10,8 @@ uses
 
 type
 
+
+
   { TForm1 }
 
   TForm1 = class(TForm)
@@ -60,7 +62,7 @@ type
     function InsertToBase(id_order: integer; fn: string;
       var src: TMemoryStream): integer;
     procedure ShowBalloon(Msg: string; flag: TBalloonFlags);
-    function OrderExists(id_order: integer): boolean;
+    function DBOrderInfo(id_order: integer): integer;
   public
     { public declarations }
   end;
@@ -190,7 +192,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.06';
+  Version := '2.07';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -327,11 +329,13 @@ var
   fn: string;
   i: integer;
   err: boolean;
-  Status: string;
+  RetCode: string;
   id_order: integer;
   delivery_id_order: integer;
   FS: TFormatSettings;
   dateorder: TDateTime;
+  status_order: integer;
+  dboi: integer;
 begin
   Result := 0;
   err := False;
@@ -352,14 +356,16 @@ begin
         myIbConnection.Connected := True;
         for i := 0 to orders.Count - 1 do
         begin
-          id_order := StrToInt(orders[i]);
+          id_order := StrToInt(orders.Names[i]);
+          //status_order:=StrToInt(orders.ValueFromIndex[i]);
           delivery_id_order :=
             id_order + ini.ReadInteger('Global', 'DeliveryOrderStart', 0);
           xmlstream := TMemoryStream.Create;
           xml := TXMLDocument.Create;
           try
             try
-              if not OrderExists(delivery_id_order) then
+              dboi := DBOrderInfo(delivery_id_order);
+              if (dboi = -$ff) then
               begin
                 fn := getXmlOrder(id_order, TStream(xmlstream));
                 xmlstream.Position := 0;
@@ -374,15 +380,18 @@ begin
                   TObject(orderInfo));
                 AddLog(format('New order %d with name: %s', [id_order, fn]), LogFile);
                 Inc(Result);
-              end
-              else
-                AddLog(format('Order %d already exists in database',
-                  [id_order]), LogFile);
-
-              Status := setOrderStatus(id_order, 1);
-              AddLog(format('Set status order %d return: %s', [id_order, Status]),
-                LogFile);
-
+              end;
+              case dboi of
+                -$ff, 0: status_order := 1;
+                else
+                  status_order := dboi;
+              end;
+              RetCode := setOrderStatus(id_order, status_order);
+              if RetCode <> '0' then
+                AddLog(format('Set status %d for order %d return: %s',
+                  [status_order, id_order, RetCode]),
+                  LogFile);
+              //end;
             except
               on e: Exception do
               begin
@@ -444,12 +453,13 @@ begin
   Form1.ShowOnTop;
 end;
 
-function TForm1.OrderExists(id_order: integer): boolean;
+function TForm1.DBOrderInfo(id_order: integer): integer;
 var
   mysqlquery: TSQLQuery;
   mytransaction: TSQLTransaction;
+  order: integer;
 begin
-  Result := False;
+  Result := -$ff;
   mysqlquery := TSQLQuery.Create(Form1);
   mytransaction := TSQLTRansaction.Create(Form1);
   try
@@ -460,11 +470,28 @@ begin
       begin
         DataBase := myIbConnection;
         SQL.Text :=
-          'SELECT INETORDER_ID FROM DLV_INTERNETORDERS WHERE INETORDER_ID=:INETORDER_ID';
+          'SELECT ORDER_ID FROM DLV_INTERNETORDERS WHERE INETORDER_ID=:INETORDER_ID';
         ParamByName('INETORDER_ID').AsInteger := id_order;
         Active := True;
         if RecordCount > 0 then
-          Result := True;
+        begin
+          mysqlquery.First;
+          order := FieldByName('ORDER_ID').AsInteger;
+          Close;
+          if order > 0 then
+          begin
+            SQL.Text :=
+              'SELECT STATUS FROM DLV_ORDERS WHERE ORDER_ID=:ORDER_ID';
+            ParamByName('ORDER_ID').AsInteger := order;
+            Active := True;
+            if RecordCount > 0 then
+            begin
+              Result := FieldByName('STATUS').AsInteger;
+            end;
+          end
+          else
+            Result := order;
+        end;
         Close;
       end;
     except
