@@ -128,27 +128,30 @@ function getListOrders() {
 function setOrderStatus($id_order,$status) {
 	global $my;
 	$sql = sprintf("UPDATE %s set status=%d where id_order=%d",DELIVERY_INFO_ORDER,$status,$id_order);
-	switch ($status) {
-		case -1: 
-			echo "Отмена заказа";
-			break;
-		case 1:
-			echo "Заказ добавлен в базу интернет заказов";
-			break;
-		case 2:
-			echo "Заказ добавлен в базу заказов";
-			break;
-		case 3:
-			echo "Заказ добавлен в производство";
-			break;				
-		case 4:
-			echo "Заказ отправлен";
-			break;
-		case 5:
-			echo "Заказ доставлен и оплачен";
-			break;		
+	$ret=$my->uquery($sql);
+	if ($ret>0) {
+		switch ($status) {
+			case -1: 
+				echo "Отмена заказа";
+				break;
+			case 1:
+				echo "Заказ добавлен в базу интернет заказов";
+				break;
+			case 2:
+				echo "Заказ добавлен в базу заказов";
+				break;
+			case 3:
+				echo "Заказ добавлен в производство";
+				break;				
+			case 4:
+				echo "Заказ отправлен";
+				break;
+			case 5:
+				echo "Заказ доставлен и оплачен";
+				break;		
+		}
 	}
-	return $my->uquery($sql);
+	return $ret;
 }
 
 if (isset($_REQUEST["getlistorders"])) {

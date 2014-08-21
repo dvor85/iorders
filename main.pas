@@ -62,7 +62,7 @@ type
     function InsertToBase(id_order: integer; fn: string;
       var src: TMemoryStream): integer;
     procedure ShowBalloon(Msg: string; flag: TBalloonFlags);
-    function DBOrderInfo(id_order: integer): integer;
+    function getDBOrderStatus(id_order: integer): integer;
   public
     { public declarations }
   end;
@@ -133,7 +133,7 @@ begin
     BalloonFlags := flag;
     BalloonTitle := Form1.Caption;
     BalloonHint := Msg;
-    BalloonTimeout := 3000;
+    BalloonTimeout := ini.ReadInteger('Global', 'BalloonTimeout', 5000);
     ShowBalloonHint;
   end;
 end;
@@ -192,7 +192,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.07';
+  Version := '2.10';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -335,7 +335,8 @@ var
   FS: TFormatSettings;
   dateorder: TDateTime;
   status_order: integer;
-  dboi: integer;
+  sso: integer;
+  dbos: integer;
 begin
   Result := 0;
   err := False;
@@ -357,15 +358,15 @@ begin
         for i := 0 to orders.Count - 1 do
         begin
           id_order := StrToInt(orders.Names[i]);
-          //status_order:=StrToInt(orders.ValueFromIndex[i]);
+          status_order := StrToInt(orders.ValueFromIndex[i]);
           delivery_id_order :=
             id_order + ini.ReadInteger('Global', 'DeliveryOrderStart', 0);
           xmlstream := TMemoryStream.Create;
           xml := TXMLDocument.Create;
           try
             try
-              dboi := DBOrderInfo(delivery_id_order);
-              if (dboi = -$ff) then
+              dbos := getDBOrderStatus(delivery_id_order);
+              if (dbos = -$ff) then
               begin
                 fn := getXmlOrder(id_order, TStream(xmlstream));
                 xmlstream.Position := 0;
@@ -376,22 +377,23 @@ begin
                 dateorder := IncSecond(StrToDateTime(getNodeValue(xml, 'wait_time'), FS),
                   -ini.ReadInteger('Global', 'DeliveryTime', 0));
                 ListBox1.Items.InsertObject(0,
-                  format('Заказ %d от %s', [id_order, DateTimeToStr(dateorder)]),
+                  format('Заказ %d от %s', [delivery_id_order,
+                  DateTimeToStr(dateorder)]),
                   TObject(orderInfo));
-                AddLog(format('New order %d with name: %s', [id_order, fn]), LogFile);
+                AddLog(format('New order %d with name: %s',
+                  [delivery_id_order, fn]), LogFile);
                 Inc(Result);
               end;
-              case dboi of
-                -$ff, 0: status_order := 1;
+              case dbos of
+                -$ff, 0: sso := 1;
                 else
-                  status_order := dboi;
+                  sso := dbos;
               end;
-              RetCode := setOrderStatus(id_order, status_order);
+              RetCode := setOrderStatus(id_order, sso);
               if RetCode <> '0' then
                 AddLog(format('Set status %d for order %d return: %s',
-                  [status_order, id_order, RetCode]),
+                  [sso, delivery_id_order, RetCode]),
                   LogFile);
-              //end;
             except
               on e: Exception do
               begin
@@ -453,11 +455,13 @@ begin
   Form1.ShowOnTop;
 end;
 
-function TForm1.DBOrderInfo(id_order: integer): integer;
+function TForm1.getDBOrderStatus(id_order: integer): integer;
 var
   mysqlquery: TSQLQuery;
   mytransaction: TSQLTransaction;
   order: integer;
+  deleted: integer;
+  status: variant;
 begin
   Result := -$ff;
   mysqlquery := TSQLQuery.Create(Form1);
@@ -470,34 +474,28 @@ begin
       begin
         DataBase := myIbConnection;
         SQL.Text :=
-          'SELECT ORDER_ID FROM DLV_INTERNETORDERS WHERE INETORDER_ID=:INETORDER_ID';
+          'SELECT DLV_INTERNETORDERS.ORDER_ID,DLV_INTERNETORDERS.DELETED,DLV_ORDERS.STATUS FROM DLV_INTERNETORDERS LEFT JOIN DLV_ORDERS ON DLV_INTERNETORDERS.ORDER_ID=DLV_ORDERS.ORDER_ID WHERE INETORDER_ID=:INETORDER_ID';
         ParamByName('INETORDER_ID').AsInteger := id_order;
         Active := True;
         if RecordCount > 0 then
         begin
           mysqlquery.First;
           order := FieldByName('ORDER_ID').AsInteger;
-          Close;
-          if order > 0 then
-          begin
-            SQL.Text :=
-              'SELECT STATUS FROM DLV_ORDERS WHERE ORDER_ID=:ORDER_ID';
-            ParamByName('ORDER_ID').AsInteger := order;
-            Active := True;
-            if RecordCount > 0 then
-            begin
-              Result := FieldByName('STATUS').AsInteger;
-            end;
-          end
+          deleted := FieldByName('DELETED').AsInteger;
+          status := FieldByName('STATUS').AsVariant;
+          if deleted = 1 then
+            Result := -1
+          else if status = NULL then
+            Result := 0
           else
-            Result := order;
+            Result := status;
         end;
         Close;
       end;
     except
       on e: Exception do
       begin
-        AddLog(E.Message + ' in function "OrderExists"', LogFile);
+        AddLog(E.Message + ' in function "getDBOrderStatus"', LogFile);
         raise Exception.Create(E.Message);
       end;
     end;
