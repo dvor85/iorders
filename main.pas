@@ -133,6 +133,7 @@ begin
     BalloonFlags := flag;
     BalloonTitle := Form1.Caption;
     BalloonHint := Msg;
+    //It seems not working???
     BalloonTimeout := ini.ReadInteger('Global', 'BalloonTimeout', 5000);
     ShowBalloonHint;
   end;
@@ -366,7 +367,7 @@ begin
           try
             try
               dbos := getDBOrderStatus(delivery_id_order);
-              if (dbos = -$ff) then
+              if (dbos = -$ff) and (status_order = 0) then
               begin
                 fn := getXmlOrder(id_order, TStream(xmlstream));
                 xmlstream.Position := 0;
