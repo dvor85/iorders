@@ -2,8 +2,7 @@ unit Updater;
 
 interface
 
-uses Classes, SysUtils, ExtCtrls, IdBaseComponent, IdComponent,
-  IdTCPConnection, IdTCPClient, IdHTTP;
+uses Classes, SysUtils, ExtCtrls, IdHTTP;
 
 type
 
@@ -54,7 +53,7 @@ type
 
 implementation
 
-uses StrUtils, ShellProcess, ShellApi, Windows, Messages;
+uses StrUtils, ShellProcess, Windows, Messages;
 
 constructor TUpdater.Create;
 var
@@ -273,7 +272,7 @@ begin
           dfile := filedir + AnsiReplaceStr(sfile, '/', '\');
 
           if (Pos('.exe', dfile) <> 0) and (LowerCase(ExtractFileName(dfile)) <>
-            LowerCase(ExtractFileName(ParamStr(0)))) and (LowerCase(param) = 'exec') then
+            LowerCase(ExtractFileName(ParamStr(0)))) or (LowerCase(param) = 'exec') then
           begin
             ShellExecute(0, 'open', PChar(dfile), PChar(Param),
               PChar(ExtractFilePath(dfile)), SW_HIDE);
