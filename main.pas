@@ -46,6 +46,7 @@ type
     function setOrderStatus(id_order: integer; status: integer): string;
 
     function LoadOrders(): integer;
+    procedure TrayIcon1Click(Sender: TObject);
     procedure TrayIcon1DblClick(Sender: TObject);
   private
     { private declarations }
@@ -133,8 +134,8 @@ begin
     BalloonFlags := flag;
     BalloonTitle := Form1.Caption;
     BalloonHint := Msg;
-    //It seems not working???
-    BalloonTimeout := ini.ReadInteger('Global', 'BalloonTimeout', 5000);
+    //It seems is not working properly???
+    BalloonTimeout := ini.ReadInteger('Global', 'BalloonTimeout', 3000);
     ShowBalloonHint;
   end;
 end;
@@ -154,7 +155,7 @@ end;
 procedure TForm1.MenuItem1Click(Sender: TObject);
 begin
   MessageDlg(Form1.Caption,
-    'Delivery InternetOrders v.2.0, Dmitriy Vorotilin, dvor85@mail.ru',
+    'Delivery InternetOrders v.' + Version + ', Dmitriy Vorotilin, dvor85@mail.ru',
     mtInformation, [mbYes], '');
 end;
 
@@ -193,7 +194,7 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.10';
+  Version := '2.11';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -426,6 +427,7 @@ begin
         ListBox1.Click;
         ShowBalloon(StatusBarBottom.Panels.Items[1].Text + #13#10 +
           StatusBarBottom.Panels.Items[0].Text, bfInfo);
+        //Form1.ShowOnTop;
         if ini.ReadBool('Global', 'BeepOnNew', False) then
           BeepOnNewOrders;
       end
@@ -449,6 +451,12 @@ begin
     orders.Free;
     myIbConnection.Connected := False;
   end;
+end;
+
+procedure TForm1.TrayIcon1Click(Sender: TObject);
+begin
+  ShowBalloon(StatusBarBottom.Panels.Items[1].Text + #13#10 +
+    StatusBarBottom.Panels.Items[0].Text, bfInfo);
 end;
 
 procedure TForm1.TrayIcon1DblClick(Sender: TObject);
