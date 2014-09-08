@@ -54,14 +54,13 @@ type
     LogFile: string;
     Shutdown: boolean;
     Version: string;
+    //IsLoadError: boolean;
     procedure CustomExceptionHandler(Sender: TObject; E: Exception);
     procedure AppEndSession(Sender: TObject);
     function getNodeValue(var xml: TXmlDocument; dname: string): string;
     procedure BeepOnNewOrders;
-    procedure formatOrderInfo(id_order: integer; var xml: TXmlDocument;
-      var orderInfo: TStrings);
-    function InsertToBase(id_order: integer; fn: string;
-      var src: TMemoryStream): integer;
+    procedure formatOrderInfo(id_order: integer; var xml: TXmlDocument; var orderInfo: TStrings);
+    function InsertToBase(id_order: integer; fn: string; var src: TMemoryStream): integer;
     procedure ShowBalloon(Msg: string; flag: TBalloonFlags);
     function getDBOrderStatus(id_order: integer): integer;
   public
@@ -122,79 +121,13 @@ begin
   end;
 end;
 
-procedure TForm1.CustomExceptionHandler(Sender: TObject; E: Exception);
-begin
-  AddLog(E.Message, LogFile);
-end;
-
-procedure TForm1.ShowBalloon(Msg: string; flag: TBalloonFlags);
-begin
-  with TrayIcon1 do
-  begin
-    BalloonFlags := flag;
-    BalloonTitle := Form1.Caption;
-    BalloonHint := Msg;
-    //It seems is not working properly???
-    BalloonTimeout := ini.ReadInteger('Global', 'BalloonTimeout', 3000);
-    ShowBalloonHint;
-  end;
-end;
-
-procedure TForm1.ListBox1Click(Sender: TObject);
-var
-  k: integer;
-  orderInfo: TStrings;
-begin
-  k := ListBox1.ItemIndex;
-  if k < 0 then
-    exit;
-  orderInfo := TStrings(ListBox1.Items.Objects[k]);
-  Memo1.Lines := orderInfo;
-end;
-
-procedure TForm1.MenuItem1Click(Sender: TObject);
-begin
-  MessageDlg(Form1.Caption,
-    'Delivery InternetOrders v.' + Version + ', Dmitriy Vorotilin, dvor85@mail.ru',
-    mtInformation, [mbYes], '');
-end;
-
-procedure TForm1.MenuItem2Click(Sender: TObject);
-begin
-  Form1.ShowOnTop;
-end;
-
-procedure TForm1.MenuItem3Click(Sender: TObject);
-begin
-  LoadOrders();
-end;
-
-procedure TForm1.MenuItem4Click(Sender: TObject);
-begin
-  if MessageDlg(Form1.Caption, 'Вы уверены что надо выйти?', mtConfirmation,
-    mbYesNo, '') = mrYes then
-  begin
-    Shutdown := True;
-    Close;
-  end;
-end;
-
-procedure TForm1.Timer1StartTimer(Sender: TObject);
-begin
-  AddLog('Process resume', LogFile);
-end;
-
-procedure TForm1.Timer1StopTimer(Sender: TObject);
-begin
-  AddLog('Process stop', LogFile);
-end;
-
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  Version := '2.11';
+  //IsLoadError := False;
+  Version := '2.12';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -245,16 +178,82 @@ begin
   end;
 end;
 
-procedure TForm1.formatOrderInfo(id_order: integer; var xml: TXmlDocument;
-  var orderInfo: TStrings);
+procedure TForm1.CustomExceptionHandler(Sender: TObject; E: Exception);
+begin
+  AddLog(E.Message, LogFile);
+end;
+
+procedure TForm1.ShowBalloon(Msg: string; flag: TBalloonFlags);
+begin
+  with TrayIcon1 do
+  begin
+    BalloonFlags := flag;
+    BalloonTitle := Form1.Caption;
+    BalloonHint := Msg;
+    //It seems is not working properly???
+    BalloonTimeout := ini.ReadInteger('Global', 'BalloonTimeout', 3000);
+    ShowBalloonHint;
+  end;
+end;
+
+procedure TForm1.ListBox1Click(Sender: TObject);
+var
+  k: integer;
+  orderInfo: TStrings;
+begin
+  k := ListBox1.ItemIndex;
+  if k < 0 then
+    exit;
+  orderInfo := TStrings(ListBox1.Items.Objects[k]);
+  Memo1.Lines := orderInfo;
+end;
+
+procedure TForm1.MenuItem1Click(Sender: TObject);
+begin
+  MessageDlg(Form1.Caption,
+    'Delivery InternetOrders v.' + Version + ', Dmitriy Vorotilin, dvor85@mail.ru',
+    mtInformation, [mbYes], '');
+end;
+
+procedure TForm1.MenuItem2Click(Sender: TObject);
+begin
+  Form1.ShowOnTop;
+end;
+
+procedure TForm1.MenuItem3Click(Sender: TObject);
+begin
+  LoadOrders();
+end;
+
+procedure TForm1.MenuItem4Click(Sender: TObject);
+begin
+  if MessageDlg(Form1.Caption, 'Вы уверены что надо выйти?', mtConfirmation, mbYesNo, '') = mrYes then
+  begin
+    Shutdown := True;
+    Close;
+  end;
+end;
+
+procedure TForm1.Timer1StartTimer(Sender: TObject);
+begin
+  AddLog('Process resume', LogFile);
+end;
+
+procedure TForm1.Timer1StopTimer(Sender: TObject);
+begin
+  AddLog('Process stop', LogFile);
+end;
+
+
+
+procedure TForm1.formatOrderInfo(id_order: integer; var xml: TXmlDocument; var orderInfo: TStrings);
 var
   s: string;
   j: integer;
   dn: TDOMNode;
 begin
   try
-    s := 'ЗАКАЗ №' + IntToStr(id_order) + ' НА СУММУ: ' +
-      getNodeValue(xml, 'order_summ') + ' руб.';
+    s := 'ЗАКАЗ №' + IntToStr(id_order) + ' НА СУММУ: ' + getNodeValue(xml, 'order_summ') + ' руб.';
     orderInfo.Add(s);
     orderInfo.Add('-----------------------------------------');
     s := 'Имя: ' + getNodeValue(xml, 'f_name') + ' ' + getNodeValue(xml, 'm_name') +
@@ -263,12 +262,10 @@ begin
     s := getNodeValue(xml, 'organization');
     if s <> '' then
       orderInfo.Add('Организация: ' + s);
-    s := 'Адрес: г.' + getNodeValue(xml, 'town') + ', ул.' +
-      getNodeValue(xml, 'street') + ', д.' + getNodeValue(xml, 'house') +
-      ', стр.' + getNodeValue(xml, 'building') + ', подъезд: ' +
-      getNodeValue(xml, 'entry') + ', кв.(офис): ' + getNodeValue(xml, 'flat') +
-      ', этаж: ' + getNodeValue(xml, 'floor') + ', код входа: ' +
-      getNodeValue(xml, 'codeentry');
+    s := 'Адрес: г.' + getNodeValue(xml, 'town') + ', ул.' + getNodeValue(xml, 'street') +
+      ', д.' + getNodeValue(xml, 'house') + ', стр.' + getNodeValue(xml, 'building') +
+      ', подъезд: ' + getNodeValue(xml, 'entry') + ', кв.(офис): ' + getNodeValue(xml, 'flat') +
+      ', этаж: ' + getNodeValue(xml, 'floor') + ', код входа: ' + getNodeValue(xml, 'codeentry');
     orderInfo.Add(s);
     s := 'Телефон: ' + getNodeValue(xml, 'phone1');
     orderInfo.Add(s);
@@ -280,8 +277,7 @@ begin
       orderInfo.Add('Примечание: ' + s);
     s := 'СОСТАВ:';
     orderInfo.Add(s);
-    orderInfo.Add(format('%-10s | %-50s | %-10s | %-10s',
-      ['Код', 'Наименование', 'Кол-во', 'Цена']));
+    orderInfo.Add(format('%-10s | %-50s | %-10s | %-10s', ['Код', 'Наименование', 'Кол-во', 'Цена']));
     orderInfo.Add('------------------------------------------------------------');
     dn := xml.DocumentElement.FindNode('menu');
     for j := 0 to dn.ChildNodes.Count - 1 do
@@ -289,9 +285,9 @@ begin
       begin
         s := format('%-10s | %-50s | %-10s | %-10s',
           [UTF8Encode(Attributes.GetNamedItem('code').TextContent),
-          UTF8Encode(Attributes.GetNamedItem('name').TextContent),
-          UTF8Encode(Attributes.GetNamedItem('quantity').TextContent),
-          UTF8Encode(Attributes.GetNamedItem('price').TextContent)]);
+          UTF8Encode(Attributes.GetNamedItem('name').TextContent), UTF8Encode(
+          Attributes.GetNamedItem('quantity').TextContent), UTF8Encode(
+          Attributes.GetNamedItem('price').TextContent)]);
         orderInfo.Add(s);
       end;
     orderInfo.Add('------------------------------------------------------------');
@@ -379,11 +375,9 @@ begin
                 dateorder := IncSecond(StrToDateTime(getNodeValue(xml, 'wait_time'), FS),
                   -ini.ReadInteger('Global', 'DeliveryTime', 0));
                 ListBox1.Items.InsertObject(0,
-                  format('Заказ %d от %s', [delivery_id_order,
-                  DateTimeToStr(dateorder)]),
+                  format('Заказ %d от %s', [delivery_id_order, DateTimeToStr(dateorder)]),
                   TObject(orderInfo));
-                AddLog(format('New order %d with name: %s',
-                  [delivery_id_order, fn]), LogFile);
+                AddLog(format('New order %d with name: %s', [delivery_id_order, fn]), LogFile);
                 Inc(Result);
               end;
               case dbos of
@@ -425,21 +419,30 @@ begin
         StatusBarBottom.Panels.Items[1].Text := Format('Новых заказов: %d', [Result]);
         ListBox1.ItemIndex := 0;
         ListBox1.Click;
+
         ShowBalloon(StatusBarBottom.Panels.Items[1].Text + #13#10 +
           StatusBarBottom.Panels.Items[0].Text, bfInfo);
-        //Form1.ShowOnTop;
+
         if ini.ReadBool('Global', 'BeepOnNew', False) then
           BeepOnNewOrders;
+        //IsLoadError := False;
       end
       else
       if err then
       begin
+        //if not IsLoadError then
+        //begin
         StatusBarBottom.Panels.Items[1].Text :=
           'Возникли ошибки при получении заказа!';
         ShowBalloon(StatusBarBottom.Panels.Items[1].Text, bfError);
+        //IsLoadError := True;
+        //end;
       end
       else
+      begin
         StatusBarBottom.Panels.Items[1].Text := 'Нет новых заказов';
+        //IsLoadError := False;
+      end;
 
     except
       on e: Exception do
@@ -455,8 +458,8 @@ end;
 
 procedure TForm1.TrayIcon1Click(Sender: TObject);
 begin
-  ShowBalloon(StatusBarBottom.Panels.Items[1].Text + #13#10 +
-    StatusBarBottom.Panels.Items[0].Text, bfInfo);
+  // ShowBalloon(StatusBarBottom.Panels.Items[1].Text + #13#10 +
+  //   StatusBarBottom.Panels.Items[0].Text, bfInfo);
 end;
 
 procedure TForm1.TrayIcon1DblClick(Sender: TObject);
@@ -513,8 +516,7 @@ begin
   end;
 end;
 
-function TForm1.InsertToBase(id_order: integer; fn: string;
-  var src: TMemoryStream): integer;
+function TForm1.InsertToBase(id_order: integer; fn: string; var src: TMemoryStream): integer;
 var
   mysqlquery: TSQLQuery;
   mytransaction: TSQLTransaction;
@@ -571,8 +573,7 @@ begin
   try
     try
       httpClient.Post(ini.ReadString('Http', 'url', ''), Data, dest);
-      Result := ExtractHeaderSubItem(httpClient.Response.ContentDisposition,
-        'filename=');
+      Result := ExtractHeaderSubItem(httpClient.Response.ContentDisposition, 'filename=');
     except
       on e: Exception do
       begin
@@ -748,7 +749,11 @@ begin
   if not upd.Checked then
     if Upd.NewVersion > Upd.CurrentVersion then
       Upd.UpdateFiles;
-  LoadOrders();
+  if LoadOrders() > 0 then
+  begin
+
+    Form1.ShowOnTop;
+  end;
 end;
 
 procedure TForm1.AppEndSession(Sender: TObject);
