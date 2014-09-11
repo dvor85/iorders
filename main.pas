@@ -54,7 +54,7 @@ type
     LogFile: string;
     Shutdown: boolean;
     Version: string;
-    //IsLoadError: boolean;
+    LoadErrorCnt: integer;
     procedure CustomExceptionHandler(Sender: TObject; E: Exception);
     procedure AppEndSession(Sender: TObject);
     function getNodeValue(var xml: TXmlDocument; dname: string): string;
@@ -126,8 +126,8 @@ begin
   Application.OnException := @CustomExceptionHandler;
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
-  //IsLoadError := False;
-  Version := '2.12';
+  LoadErrorCnt := 0;
+  Version := '2.13';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -425,23 +425,25 @@ begin
 
         if ini.ReadBool('Global', 'BeepOnNew', False) then
           BeepOnNewOrders;
-        //IsLoadError := False;
+        LoadErrorCnt := 0;
       end
       else
       if err then
       begin
-        //if not IsLoadError then
-        //begin
-        StatusBarBottom.Panels.Items[1].Text :=
-          'Возникли ошибки при получении заказа!';
-        ShowBalloon(StatusBarBottom.Panels.Items[1].Text, bfError);
-        //IsLoadError := True;
-        //end;
+        if LoadErrorCnt > 4 then
+        begin
+          StatusBarBottom.Panels.Items[1].Text :=
+            'Возможны проблемы при получении заказа!';
+          ShowBalloon(StatusBarBottom.Panels.Items[1].Text, bfError);
+          LoadErrorCnt := 0;
+        end
+        else
+          Inc(LoadErrorCnt);
       end
       else
       begin
         StatusBarBottom.Panels.Items[1].Text := 'Нет новых заказов';
-        //IsLoadError := False;
+        LoadErrorCnt := 0;
       end;
 
     except
