@@ -127,7 +127,7 @@ begin
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
   LoadErrorCnt := 0;
-  Version := '2.13';
+  Version := '2.14';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -570,8 +570,7 @@ var
   Data: TStrings;
 begin
   Data := TStringList.Create;
-  Data.Add('getxmlorder=1');
-  Data.Add('id_order=' + IntToStr(id_order));
+  Data.Add('getxmlorder='+IntToStr(id_order));
   try
     try
       httpClient.Post(ini.ReadString('Http', 'url', ''), Data, dest);
@@ -621,9 +620,8 @@ var
 begin
   Data := TStringList.Create;
   res := TStringList.Create;
-  Data.Add('setorderstatus=1');
+  Data.Add('setorderstatus='+IntToStr(status));
   Data.Add('id_order=' + IntToStr(id_order));
-  Data.Add('status=' + IntToStr(status));
   Result := '';
   try
     try

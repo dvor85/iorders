@@ -114,8 +114,8 @@ function get_xmlorder($id_order)
 function getListOrders() {
 	global $my;
 	$s="";
-	//$sql = sprintf("SELECT id_order,status FROM %s where status in (0,1,2,3,4) and DATE(wait_time)=CURDATE()",DELIVERY_INFO_ORDER);
-	$sql = sprintf("SELECT id_order,status FROM %s where status in (0,1,2,3,4)",DELIVERY_INFO_ORDER);
+	$sql = sprintf("SELECT id_order,status FROM %s where status in (0,1,2,3,4) and DATE(wait_time)=CURDATE()",DELIVERY_INFO_ORDER);
+	//$sql = sprintf("SELECT id_order,status FROM %s where status in (0,1,2,3,4)",DELIVERY_INFO_ORDER);
 	$orders=&$my->query($sql);	
 	if ($orders) {		
 		for ($i=0;$i<count($orders);$i++) {
@@ -161,8 +161,8 @@ if (isset($_REQUEST["getlistorders"])) {
 	echo getListOrders();
 }
 
-if (isset($_REQUEST["getxmlorder"])&&!empty($_REQUEST["id_order"])) {	
-	$id_order=(int)substr(strip_tags(stripslashes(trim($_REQUEST["id_order"]))),0,16);
+if (!empty($_REQUEST["getxmlorder"])) {	
+	$id_order=(int)substr(strip_tags(stripslashes(trim($_REQUEST["getxmlorder"]))),0,16);
 	$res=get_xmlorder($id_order);	
 	if (is_array($res)) {
 		$file_name="d_".date("dmYHisB",$res["datetime"]).".xml";
@@ -177,9 +177,9 @@ if (isset($_REQUEST["getxmlorder"])&&!empty($_REQUEST["id_order"])) {
 	}	
 }
 
-if (isset($_REQUEST["setorderstatus"])&&!empty($_REQUEST["id_order"])&&isset($_REQUEST["status"])) {	
+if (!empty($_REQUEST["setorderstatus"])&&!empty($_REQUEST["id_order"])) {	
 	$id_order=(int)substr(strip_tags(stripslashes(trim($_REQUEST["id_order"]))),0,16);
-	$status=(int)substr(strip_tags(stripslashes(trim($_REQUEST["status"]))),0,16);
+	$status=(int)substr(strip_tags(stripslashes(trim($_REQUEST["setorderstatus"]))),0,16);
 	header("Content-type:text/plain; charset=utf-8");
 	echo "status=".setOrderStatus($id_order,$status);	
 }

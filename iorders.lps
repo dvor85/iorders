@@ -4,15 +4,17 @@
     <PathDelim Value="\"/>
     <Version Value="9"/>
     <BuildModes Active="Default"/>
-    <Units Count="44">
+    <Units Count="45">
       <Unit0>
         <Filename Value="iorders.lpr"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="iorders"/>
+        <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
-        <CursorPos X="46" Y="18"/>
-        <UsageCount Value="137"/>
+        <CursorPos X="7" Y="9"/>
+        <UsageCount Value="138"/>
+        <Loaded Value="True"/>
       </Unit0>
       <Unit1>
         <Filename Value="main.pas"/>
@@ -22,12 +24,12 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="main"/>
         <IsVisibleTab Value="True"/>
-        <EditorIndex Value="0"/>
+        <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="451"/>
-        <CursorPos X="64" Y="464"/>
-        <FoldState Value=" TLw10{JJ"/>
-        <UsageCount Value="137"/>
+        <TopLine Value="120"/>
+        <CursorPos X="81" Y="133"/>
+        <FoldState Value=" TLvg0{J."/>
+        <UsageCount Value="138"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
@@ -277,12 +279,10 @@
       <Unit33>
         <Filename Value="Updater.pas"/>
         <UnitName Value="Updater"/>
-        <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
         <TopLine Value="62"/>
         <CursorPos X="17" Y="74"/>
         <UsageCount Value="33"/>
-        <Loaded Value="True"/>
       </Unit33>
       <Unit34>
         <Filename Value="ShellProcess.pas"/>
@@ -361,67 +361,26 @@
         <CursorPos X="61" Y="1600"/>
         <UsageCount Value="11"/>
       </Unit43>
+      <Unit44>
+        <Filename Value="D:\lazarus\fpc\2.6.4\source\rtl\win\wininc\redef.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="73"/>
+        <CursorPos X="3" Y="86"/>
+        <UsageCount Value="10"/>
+      </Unit44>
     </Units>
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
-    <JumpHistory Count="14" HistoryIndex="13">
+    <JumpHistory Count="2" HistoryIndex="1">
       <Position1>
         <Filename Value="main.pas"/>
-        <Caret Line="136" Column="6" TopLine="127"/>
+        <Caret Line="214" Column="49" TopLine="205"/>
       </Position1>
       <Position2>
         <Filename Value="main.pas"/>
-        <Caret Line="137" Column="5" TopLine="124"/>
+        <Caret Line="56" Column="5" TopLine="43"/>
       </Position2>
-      <Position3>
-        <Filename Value="main.pas"/>
-        <Caret Line="138" Column="16" TopLine="124"/>
-      </Position3>
-      <Position4>
-        <Filename Value="main.pas"/>
-        <Caret Line="143" Column="31" TopLine="126"/>
-      </Position4>
-      <Position5>
-        <Filename Value="main.pas"/>
-        <Caret Line="140" Column="20" TopLine="127"/>
-      </Position5>
-      <Position6>
-        <Filename Value="main.pas"/>
-        <Caret Line="202" Column="17" TopLine="181"/>
-      </Position6>
-      <Position7>
-        <Filename Value="main.pas"/>
-        <Caret Line="137" Column="24" TopLine="123"/>
-      </Position7>
-      <Position8>
-        <Filename Value="main.pas"/>
-        <Caret Line="138" Column="24" TopLine="124"/>
-      </Position8>
-      <Position9>
-        <Filename Value="main.pas"/>
-        <Caret Line="137" Column="24" TopLine="123"/>
-      </Position9>
-      <Position10>
-        <Filename Value="main.pas"/>
-        <Caret Line="630" Column="30" TopLine="586"/>
-      </Position10>
-      <Position11>
-        <Filename Value="main.pas"/>
-        <Caret Line="740" Column="6" TopLine="625"/>
-      </Position11>
-      <Position12>
-        <Filename Value="main.pas"/>
-        <Caret Line="741" Column="25" TopLine="626"/>
-      </Position12>
-      <Position13>
-        <Filename Value="main.pas"/>
-        <Caret Line="58" Column="33" TopLine="45"/>
-      </Position13>
-      <Position14>
-        <Filename Value="main.pas"/>
-        <Caret Line="57" Column="26" TopLine="53"/>
-      </Position14>
     </JumpHistory>
   </ProjectSession>
   <EditorMacros Count="0"/>
