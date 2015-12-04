@@ -127,7 +127,7 @@ begin
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
   LoadErrorCnt := 0;
-  Version := '2.14';
+  Version := '2.15';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
