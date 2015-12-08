@@ -190,6 +190,13 @@ begin
 end;
 
 function TUpdater.UpdateFiles: integer;
+//***********************************************************************************************************
+//format of ver-file:
+//1. version
+//2. app.exe [params][;file1;file2...] - app.exe - self exe file, file1,2 - files updated in same transaction
+//3. file[.exe] [params|exec][file1;file2...] - file[.exe] - other exe file, which run before update app.exe.
+//If params=exec then run file in windows association
+//***********************************************************************************************************
 var
   response: TMemoryStream;
   i, j, k: integer;
@@ -226,16 +233,16 @@ begin
           AddLog('Try to update file: ' + dfile);
           try
             try
-              IdHTTP.Post('http://' + IdHTTP.URL.Host + ':' +
-                IdHTTP.URL.Port + IdHTTP.URL.Path + sfile, ASource, response);
+              IdHTTP.Post('http://' + IdHTTP.URL.Host + ':' + IdHTTP.URL.Port +
+                IdHTTP.URL.Path + sfile, ASource, response);
               Inc(Result);
             except
               AddLog('Error get file: ' + dfile);
               Continue;
             end;
             try
-              if LowerCase(ExtractFileName(dfile)) =
-                LowerCase(ExtractFileName(ParamStr(0))) then
+              if LowerCase(ExtractFileName(dfile)) = LowerCase(
+                ExtractFileName(ParamStr(0))) then
               begin
                 dfile := ExtractFilePath(dfile) + 'tmp_' + ExtractFileName(dfile);
                 new_exe := dfile;
@@ -283,14 +290,14 @@ begin
         Dec(Result);
         Continue;
       end;
-      if LowerCase(ExtractFileName(new_exe)) = LowerCase('tmp_' +
-        ExtractFileName(ParamStr(0))) then
-      begin
-        ShellExecute(0, 'open', PChar(new_exe), PChar(new_exe_param),
-          PChar(ExtractFilePath(new_exe)), SW_HIDE);
-        ProcessTerminate(GetCurrentProcessId);
-      end;
     end;
+    if LowerCase(ExtractFileName(new_exe)) = LowerCase('tmp_' + ExtractFileName(ParamStr(0))) then
+    begin
+      ShellExecute(0, 'open', PChar(new_exe), PChar(new_exe_param),
+        PChar(ExtractFilePath(new_exe)), SW_HIDE);
+      ProcessTerminate(GetCurrentProcessId);
+    end;
+
   finally
     ASource.Free;
     response.Free;

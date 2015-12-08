@@ -127,7 +127,7 @@ begin
   Application.OnEndSession := @AppEndSession;
   Upd := TUpdater.Create;
   LoadErrorCnt := 0;
-  Version := '2.15';
+  Version := '2.16';
   Caption := 'Интернет заказы v.' + Version;
   ini := TIniFile.Create(ChangeFileExt(ParamStr(0), '.ini'));
   LogFile := ini.ReadString('Global', 'Log', ChangeFileExt(ParamStr(0), '.log'));
@@ -138,7 +138,7 @@ begin
     Request.Username := ini.ReadString('Http', 'Uname', '');
     Request.Password := DecodeStringBase64(ini.ReadString('Http', 'Upass', ''));
     Request.BasicAuthentication := True;
-    Request.UserAgent := ExtractFileName(ParamStr(0)) + ' v.' + Version;
+    Request.UserAgent := ExtractFileName(ParamStr(0)) + ' v.' + Form1.Version;
   end;
   AddLog('START', LogFile);
   Shutdown := False;
